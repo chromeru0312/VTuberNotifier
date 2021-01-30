@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <UserSecretsId>157ccde4-6643-48b7-93e2-5b21382fec6e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="Authentication.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CoreTweet" Version="1.0.0.483" />
+    <PackageReference Include="Discord.Net" Version="2.3.0" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.49.0.2217" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.30" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.2" NoWarn="NU1605" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.2" NoWarn="NU1605" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
+  </ItemGroup>
+
+</Project>
