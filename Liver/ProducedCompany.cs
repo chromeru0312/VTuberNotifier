@@ -19,13 +19,11 @@ namespace VTuberNotifier.Liver
 
     public class CompanyDetail : Address
     {
-        public int Id { get; }
         public string HomePage { get; }
 
         public CompanyDetail(int id, string name, string hp, string twitter = null, string youtube = null)
-            : base(name, youtube, twitter)
+            : base(id, name, youtube, twitter)
         {
-            Id = id;
             HomePage = hp;
         }
     }
