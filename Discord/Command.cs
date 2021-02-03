@@ -194,12 +194,12 @@ namespace VTuberNotifier.Discord
         protected async override Task<IUserMessage> ReplyAsync(string message = null, bool isTTS = false,
             Embed embed = null, RequestOptions options = null, AllowedMentions allowedMentions = null, MessageReference messageReference = null)
         {
-            var id = DiscordCommand.Instance.ProcessingCommand[Context];
-            var text = $"CommandID:{id}";
-            if (message == null) message = text;
-            else message += "\n" + text;
+            //var id = DiscordCommand.Instance.ProcessingCommand[Context];
+            //var text = $"CommandID:{id}";
+            //if (message == null) message = text;
+            //else message += "\n" + text;
             var msg = await base.ReplyAsync(message, isTTS, embed, options);
-            DiscordCommand.Instance.AddHistory(id, new CommandDetail(id, Context, msg));
+            //DiscordCommand.Instance.AddHistory(id, new CommandDetail(id, Context, msg));
             return msg;
         }
     }
