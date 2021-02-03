@@ -30,14 +30,15 @@ namespace VTuberNotifier.Discord
             if (!NotifyChannelList.ContainsKey(liver)) return;
             foreach(var dc in NotifyChannelList[liver])
             {
-                if (dc.MsgContentList.ContainsKey(typeof(T))) continue;
+                if (!dc.MsgContentList.ContainsKey(typeof(T))) continue;
                 var guild = SettingData.DiscordClient.GetGuild(dc.GuildId);
                 var ch = guild.GetTextChannel(dc.ChannelId);
                 string content;
 
                 if (value is IDiscordContent c)
                 {
-                    content = dc.MsgContentList.ContainsKey(typeof(T)) ? c.ConvertContent(dc.MsgContentList[typeof(T)]) : c.GetDiscordContent();
+                    var f = dc.MsgContentList[typeof(T)];
+                    content = f != null ? c.ConvertContent(f) : c.GetDiscordContent();
                 }
                 else content = value.ToString();
 
