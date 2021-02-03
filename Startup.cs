@@ -1,13 +1,9 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
-using System.Threading.Tasks;
-using VTuberNotifier.Discord;
 using VTuberNotifier.Watcher;
 
 namespace VTuberNotifier
@@ -70,6 +66,9 @@ namespace VTuberNotifier
             {
                 endpoints.MapControllers();
             });
+
+            DataManager.CreateInstance();
+            WatcherTask.CreateInstance();
         }
     }
 }
