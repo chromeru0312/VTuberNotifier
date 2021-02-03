@@ -49,7 +49,7 @@ namespace VTuberNotifier.Watcher.Feed
                 var article = articles[i];
                 var link = article.Element(ns + "link").Value.Trim();
                 var title = article.Element(ns + "title").Value.Trim();
-                var aid = uint.Parse(link.Split('/')[^1].Split('.')[0]) + (uint)cid * 10000;
+                var aid = uint.Parse(link.Split('/')[^1].Split('.')[0], SettingData.Culture) + (uint)cid * 10000;
                 Console.WriteLine($"(PRTimes-{group.Name}) ID:{aid} / Title:{title}");
 
                 var doc = new HtmlDocument();
@@ -58,7 +58,7 @@ namespace VTuberNotifier.Watcher.Feed
                 var text = "//html/body/div[@class='container container-content']/main/div[@class='content']/article/div";
                 var content = doc.DocumentNode.SelectSingleNode(text + "/div").InnerText.Trim();
                 var datetxt = text + "/header/div[@class='information-release']/time";
-                var date = DateTime.Parse(doc.DocumentNode.SelectSingleNode(datetxt).Attributes["datetime"].Value.Trim());
+                var date = DateTime.Parse(doc.DocumentNode.SelectSingleNode(datetxt).Attributes["datetime"].Value.Trim(), SettingData.Culture);
                 list.Add(new(aid, group, title, link, date, content));
             }
             if (list.Count > 0)
