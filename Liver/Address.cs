@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace VTuberNotifier.Liver
 {
     [Serializable]
-    public class Address
+    public class Address : IEquatable<Address>
     {
+        public int Id { get; }
         public string Name { get; }
         public string YouTubeId { get; }
         public string TwitterId { get; }
@@ -15,8 +13,9 @@ namespace VTuberNotifier.Liver
         private const string YouTubeUrl = "https://www.youtube.com/channel/";
         private const string TwitterUrl = "https://twitter.com/";
 
-        public Address(string name, string youtube, string twitter)
+        public Address(int id, string name, string youtube, string twitter)
         {
+            Id = id;
             Name = name;
 
             if (youtube != null) youtube = GetId(youtube, YouTubeUrl);
@@ -35,9 +34,23 @@ namespace VTuberNotifier.Liver
             return content;
         }
 
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Id);
+        }
+        public override bool Equals(object obj)
+        {
+            return obj is Address a && Equals(a);
+        }
+        public bool Equals(Address other)
+        {
+            return Id == other.Id;
+        }
+
         public override string ToString()
         {
             return Name;
         }
+
     }
 }
