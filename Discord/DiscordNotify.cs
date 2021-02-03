@@ -18,8 +18,10 @@ namespace VTuberNotifier.Discord
             static KeyValuePair<LiverDetail, IReadOnlyList<DiscordChannel>> func(LiverDetail l)
                 => new KeyValuePair<LiverDetail, IReadOnlyList<DiscordChannel>>(l, new List<DiscordChannel>());
 
-            if (DataManager.Instance.TryDataLoad($"NotifyChannelList", out Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>> dic))
-                NotifyChannelList = dic;
+            if (DataManager.Instance.TryDataLoad("NotifyChannelList", out IEnumerable<KeyValuePair<int, List<DiscordChannel>>> dic))
+                NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(
+                        dic.Select(p => new KeyValuePair<LiverDetail, IReadOnlyList<DiscordChannel>>(
+                            LiverData.GetAllLiversList().First(l => l.Id == p.Key), new List<DiscordChannel>(p.Value))));
             else NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(LiverData.GetAllLiversList().Select(func));
         }
 
@@ -35,25 +37,46 @@ namespace VTuberNotifier.Discord
 
                 if (value is IDiscordContent c)
                 {
-                    var format = dc.MsgContentList[typeof(T)];
-                    content = format == null ? c.GetDiscordContent() : c.ConvertContent(format);
+                    content = dc.MsgContentList.ContainsKey(typeof(T)) ? c.ConvertContent(dc.MsgContentList[typeof(T)]) : c.GetDiscordContent();
                 }
                 else content = value.ToString();
 
                 await ch.SendMessageAsync(content);
             }
-
-            var g = SettingData.DiscordClient.GetGuild(755356617318596659);
-            var chan = g.GetTextChannel(805006518911107093);
-            await chan.SendMessageAsync((value as IDiscordContent).GetDiscordContent());
         }
 
         public static bool AddNotifyList(LiverDetail liver, DiscordChannel channel)
         {
+            if (NotifyChannelList[liver].Contains(channel)) return false;
+            NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyChannelList)
+            {
+                [liver] = new List<DiscordChannel>(NotifyChannelList[liver]) { channel }
+            };
+            var data = NotifyChannelList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
+            DataManager.Instance.DataSave("NotifyChannelList", data, true);
+            return true;
+        }
+        public static bool UpdateNotifyList(LiverDetail liver, DiscordChannel channel)
+        {
             var list = new List<DiscordChannel>(NotifyChannelList[liver]);
-            if (list.Contains(channel)) return false;
-            list.Add(channel);
+            if (!list.Contains(channel)) return false;
+            var ch = list.FirstOrDefault(c => channel.Equals(c));
+            foreach(var (type, content) in channel.MsgContentList) ch.SetContent(type, content);
+            list.Remove(channel);
+            list.Add(ch);
             NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyChannelList) { [liver] = list };
+            var data = NotifyChannelList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
+            DataManager.Instance.DataSave("NotifyChannelList", data, true);
+            return true;
+        }
+        public static bool RemoveNotifyList(LiverDetail liver, DiscordChannel channel)
+        {
+            var list = new List<DiscordChannel>(NotifyChannelList[liver]);
+            if (!list.Contains(channel)) return false;
+            list.Remove(channel);
+            NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyChannelList) { [liver] = list };
+            var data = NotifyChannelList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
+            DataManager.Instance.DataSave("NotifyChannelList", data, true);
             return true;
         }
     }
@@ -77,6 +100,12 @@ namespace VTuberNotifier.Discord
         public void SetContent(Type type, string content)
         {
             MsgContentList = new Dictionary<Type, string>(MsgContentList) { [type] = content };
+        }
+        public void RemoveContent(Type type)
+        {
+            var dic = new Dictionary<Type, string>(MsgContentList);
+            dic.Remove(type);
+            MsgContentList = dic;
         }
 
         public override bool Equals(object obj)
@@ -107,6 +136,7 @@ namespace VTuberNotifier.Discord
                 var channel = reader.GetUInt64();
                 reader.Read();
 
+                reader.Read();
                 if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
                 var dic = new Dictionary<Type, string>();
                 while (true)
