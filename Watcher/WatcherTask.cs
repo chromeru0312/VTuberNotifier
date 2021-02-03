@@ -65,7 +65,19 @@ namespace VTuberNotifier.Watcher
 
         public async Task BoothTask()
         {
-            var groups = LiverGroup.GroupList;
+            var res = await BoothWatcher.Instance.GetNewProduct(LiverGroup.Nijiasnji);
+            if (res != null && res.Count != 0)
+            {
+                foreach (var product in res)
+                {
+                    foreach (var liver in product.Livers)
+                    {
+                        await DiscordNotify.NotifyInformation(liver, product);
+                    }
+                }
+            }
+            /*
+            var groups = new List<LiverGroupDetail>() { LiverGroup.Nijiasnji };//LiverGroup.GroupList;
             List<Task<List<BoothProduct>>> list = new(groups.Count);
 
             for (int i = 0; i < groups.Count; i++)
@@ -85,7 +97,7 @@ namespace VTuberNotifier.Watcher
                         }
                     }
                 }
-            }
+            }*/
         }
 
         public async Task NijisanjiStoreTask()
