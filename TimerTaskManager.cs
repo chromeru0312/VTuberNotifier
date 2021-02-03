@@ -24,9 +24,9 @@ namespace VTuberNotifier
             Timer.Elapsed += TimerTask;
             var now = DateTime.Now;
             var sec = now.Second % Interval * 1000;
-            Task.Delay((sec == 0 ? 20 : sec) - now.Millisecond).Wait();
+            Task.Delay(Interval * 1000 - sec - now.Millisecond).Wait();
             Timer.Start();
-            TimerReset = new DateTime(now.Year, now.Month, now.Day + 1, 0, 0, 0);
+            TimerReset = DateTime.Today.AddDays(1);
             ActionList = new();
             LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "Timer", "Timer Start!"));
         }
@@ -63,8 +63,7 @@ namespace VTuberNotifier
             if (TimerReset < e.SignalTime)
             {
                 TimerCount = 0;
-                var now = DateTime.Now;
-                TimerReset = new DateTime(now.Year, now.Month, now.Day + 1, 0, 0, 0);
+                TimerReset = DateTime.Today.AddDays(1);
                 await WatcherTask.Instance.OneDayTask();
                 await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "Task", "Reset TimerCount."));
             }
