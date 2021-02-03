@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
@@ -16,16 +17,18 @@ namespace VTuberNotifier.Watcher.Store
         public static NijisanjiWatcher Instance { get; private set; }
         public IReadOnlyList<NijisanjiProduct> FoundProducts { get; private set; }
 
-        private NijisanjiWatcher()
-        {
-            var b = DataManager.Instance.TryDataLoad($"NijiasnjiStoreProduct", out List<NijisanjiProduct> list);
-            if(!b) list = new List<NijisanjiProduct>();
-            FoundProducts = list;
-        }
+        private NijisanjiWatcher() { }
         public static void CreateInstance()
         {
             if (Instance != null) return;
             Instance = new NijisanjiWatcher();
+            LoadList();
+        }
+        private static void LoadList()
+        {
+            var b = DataManager.Instance.TryDataLoad("NijisanjiStoreProduct", out List<NijisanjiProduct> list);
+            if (!b) list = new List<NijisanjiProduct>();
+            Instance.FoundProducts = list;
         }
 
         public async Task<List<ProductBase>> GetNewProduct()
@@ -61,39 +64,43 @@ namespace VTuberNotifier.Watcher.Store
                 foreach (var p in ps)
                 {
                     var name = p.SelectSingleNode("./div[@class='variation-name']/span").InnerText.Trim();
-                    var price = int.Parse(p.SelectSingleNode("./div[@class='variation-price']/div").InnerText.Trim(), NumberStyles.Currency);
+                    var str = p.SelectSingleNode("./div[@class='variation-price']/div").InnerText.Trim().Replace("&yen;", "");
+                    var price = int.Parse(str.Replace("\\", "").Trim(), NumberStyles.Currency, SettingData.Culture);
                     plist.Add((name, price));
                 }
 
                 DateTime? s = null, e = null;
                 var explain = doc1.DocumentNode.SelectSingleNode("//html/body/div/main/div/div/div[@id='detail-text']/div/div").InnerText;
-                int si, ei;
+                /*int si, ei;
                 if (cate == "#デジタルグッズ" && genre == "#季節ボイス")
                 {
                     if (title.Contains("コンプリートセット")) continue;
-                    string search = "【販売期間】<br />\n";
+                    string search = "【販売期間】";
                     si = explain.IndexOf(search) + search.Length;
                     ei = explain.IndexOf("の間、期間限定で販売！");
                 }
                 else
                 {
-                    string search = "期間限定販売】<br />\n";
+                    string search = "期間】";
                     si = explain.IndexOf(search) + search.Length;
                     ei = si + 39;
                 }
-                var date = explain[si..ei];
-                var di = date.IndexOf('【');
-                if (di != -1) date = date[..di];
-                var datea = date.Split('～');
-                s = JPDateConvert(datea[0]);
-                e = JPDateConvert(datea[1]);
-
-                list.Add(new NijisanjiProduct(title, url, cate, genre, explain, plist, s, e));
+                if(si != -1)
+                {
+                    var date = explain[si..ei];
+                    var di = date.IndexOf('【');
+                    if (di != -1) date = date[..di];
+                    var datea = date.Split('～');
+                    s = JPDateConvert(datea[0]);
+                    e = JPDateConvert(datea[1]);
+                }*/
+                var np = new NijisanjiProduct(title, url, cate, genre, explain, plist, s, e);
+                if (!FoundProducts.Contains(np)) list.Add(np);
             }
             if (list.Count > 0)
             {
                 FoundProducts = new List<NijisanjiProduct>(FoundProducts.Concat(list.Select(p => (NijisanjiProduct)p)));
-                await DataManager.Instance.DataSaveAsync($"NijiasnjiStoreProduct", FoundProducts, true);
+                await DataManager.Instance.DataSaveAsync("NijisanjiStoreProduct", FoundProducts, true);
             }
             return list;
         }
@@ -103,11 +110,12 @@ namespace VTuberNotifier.Watcher.Store
             date = date.Replace('月', '/');
             date = date.Replace('日', ' ');
             date = date.Remove(date.Length - 8, date.Length - 5);
-            return DateTime.Parse(date);
+            return DateTime.Parse(date, SettingData.Culture);
         }
     }
 
     [Serializable]
+    [JsonConverter(typeof(NijisanjiProductConverter))]
     public class NijisanjiProduct : ProductBase
     {
         public string Genre { get; }
@@ -122,6 +130,40 @@ namespace VTuberNotifier.Watcher.Store
             : base(title, url, LiverGroup.Nijiasnji, category, items, DetectLiver(LiverGroup.Nijiasnji, explain), start, end)
         {
             Genre = genre;
+        }
+        protected private NijisanjiProduct(string id, string title, string url, string category, string genre,
+           List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+            : base(id, title, url, LiverGroup.Nijiasnji, category, items, livers, start, end)
+        {
+            Genre = genre;
+        }
+
+        public class NijisanjiProductConverter : ProductConverter<NijisanjiProduct>
+        {
+            public override NijisanjiProduct Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+            {
+                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+
+                var (id, title, url, _, category, items, livers, start, end) = ReadBase(ref reader, type, options);
+                reader.Read();
+                reader.Read();
+                var genre = reader.GetString();
+
+                reader.Read();
+                if (reader.TokenType == JsonTokenType.EndObject)
+                    return new(id, title, url, category, genre, items, livers, start, end);
+                throw new JsonException();
+            }
+
+            public override void Write(Utf8JsonWriter writer, NijisanjiProduct value, JsonSerializerOptions options)
+            {
+                writer.WriteStartObject();
+
+                WriteBase(writer, value, options);
+                writer.WriteString("Genre", value.Genre);
+
+                writer.WriteEndObject();
+            }
         }
     }
 }
