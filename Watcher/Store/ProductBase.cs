@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using VTuberNotifier.Discord;
 using VTuberNotifier.Liver;
@@ -17,7 +18,6 @@ namespace VTuberNotifier.Watcher.Store
         public string Category { get; }
         public IReadOnlyList<ProductItem> Items { get; }
         public IReadOnlyList<LiverDetail> Livers { get; }
-        public bool IsExistedStart { get; }
         public DateTime StartDate { get; }
         public bool IsExistedEnd { get; }
         public DateTime EndDate { get; }
@@ -37,56 +37,52 @@ namespace VTuberNotifier.Watcher.Store
         public virtual IReadOnlyDictionary<string, IEnumerable<object>> ContentFormatEnumerator
             => new Dictionary<string, IEnumerable<object>>()
             {
-                { "Livers", Livers }, { "ItemsNP", Items.Select(i => $"{i.Name} \\{i.Price}") },
+                { "Livers", Livers }, { "ItemsNP", Items.Select(i => $"{i.Name}  \\{i.Price}") },
                 { "ItemsN", Items.Select(i => i.Name) },
             };
 
         public ProductBase(string title, string url, LiverGroupDetail shop, string category,
             List<(string, int)> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+            : this(title, url, shop, category, start, end)
+        {
+            var index = url.IndexOf('?');
+            if (index != -1) url = url.Substring(0, index);
+            Id = url.Replace(ExceptUrl, "");
+            (Items, Livers) = InspectItems(shop, items, livers);
+        }
+        protected private ProductBase(string id, string title, string url, LiverGroupDetail shop, string category,
+            List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+            : this(title, url, shop, category, start, end)
+        {
+            Id = id;
+            Items = items;
+            Livers = livers;
+        }
+        protected private ProductBase(string id, string title, string url, LiverGroupDetail shop, string category,
+            List<(string, int)> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+            : this(title, url, shop, category, start, end)
+        {
+            Id = id;
+            (Items, Livers) = InspectItems(shop, items, livers);
+        }
+        private ProductBase(string title, string url, LiverGroupDetail shop, string category, DateTime? start, DateTime? end)
         {
             Title = title;
             var index = url.IndexOf('?');
             if (index != -1) url = url.Substring(0, index);
             Url = url;
-            Id = url.Replace(ExceptUrl, "");
             Shop = shop;
             Category = category;
-            (Items, Livers) = InspectItems(shop, items, livers);
-            IsExistedStart = start != null;
-            if (IsExistedStart) StartDate = (DateTime)start;
+            if (start != null) StartDate = (DateTime)start;
             else StartDate = DateTime.Now;
             IsExistedEnd = end != null;
             if (IsExistedEnd) EndDate = (DateTime)end;
         }
 
-        public string SaleDateTime()
-        {
-            string text = null;
-            var now = DateTime.Now;
-            if (!IsOnSale)
-            {
-                if (IsExistedStart && IsExistedEnd)
-                {
-                    if (StartDate.Year != EndDate.Year)
-                        text = $"{StartDate:yyyy/MM/dd HH:mm} ～ {EndDate:yyyy/MM/dd HH:mm}";
-                    else text = $"{StartDate:MM/dd HH:mm} ～ {EndDate:MM/dd HH:mm}";
-                }
-                else if (IsExistedStart)
-                {
-                    if (StartDate.Year != now.Year) text = $"{StartDate:yyyy/MM/dd HH:mm} ～";
-                    else text = $"{StartDate:MM/dd HH:mm} ～";
-                }
-            }
-            else if (IsExistedEnd)
-            {
-                if (now.Year != EndDate.Year) text = $"～ {EndDate:yyyy/MM/dd HH:mm}";
-                else text = $"～ {EndDate:MM/dd HH:mm}";
-            }
-            return text;
-        }
-
         private protected static (List<ProductItem>, List<LiverDetail>) InspectItems(LiverGroupDetail shop, List<(string, int)> items, List<LiverDetail> livers = null)
         {
+            bool b = false;
+            if (livers == null) b = true;
             var res = (new List<ProductItem>(), livers ?? new List<LiverDetail>());
             foreach(var item in items)
             {
@@ -100,7 +96,8 @@ namespace VTuberNotifier.Watcher.Store
                 {
                     var list = DetectLiver(shop, name, livers);
                     res.Item1.Add(new(name, price, list));
-                    res.Item2.AddRange(list);
+                    if(b) res.Item2.AddRange(list);
+                    res.Item2 = new(res.Item2.Distinct());
                 }
             }
             res.Item2 = new(res.Item2.Distinct());
@@ -110,22 +107,24 @@ namespace VTuberNotifier.Watcher.Store
         {
             bool b = livers == null || livers.Count == 0;
             if (b) livers = new(LiverData.GetLiversList(shop));
-            List<LiverDetail> res = null;
+            var res = new List<LiverDetail>();
             foreach (var liver in livers)
             {
-                if (content.Contains(liver.Name))
-                {
-                    if (res == null) res = new();
-                    res.Add(liver);
-                }
+                if (content.Contains(liver.Name)) res.Add(liver);
             }
-            if (res == null && !b) res = livers;
+            if (res.Count == 0 && !b) res = livers;
             return res;
+        }
+        public string TrimUrl(string url)
+        {
+            var index = url.IndexOf('?');
+            if (index != -1) url = url[0..index];
+            return url;
         }
 
         public virtual string GetDiscordContent()
         {
-            var format = "新しい商品ページが公開されました\n{Title}\n{Date}\n{URL}\n参加ライバー:{Livers: / }\n{ItemNP:\n}";
+            var format = "新しい商品ページが公開されました\n{Title}\n{Date}\n{URL}\n参加ライバー:{Livers: / }\n{ItemsNP:\\n}";
             return (this as IDiscordContent).ConvertContent(format);
         }
 
@@ -133,11 +132,103 @@ namespace VTuberNotifier.Watcher.Store
         public static bool operator !=(ProductBase a, ProductBase b) => !(a == b);
         public override bool Equals(object obj)
         {
-            return obj is ProductBase p && p.Url == Url;
+            return obj is ProductBase p && p.Id == Id;
         }
         public override int GetHashCode()
         {
             return Id.GetHashCode();
+        }
+
+        public abstract class ProductConverter<T> : JsonConverter<T> where T : ProductBase
+        {
+            public (string id, string title, string url, LiverGroupDetail shop, string category,
+            List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+                ReadBase(ref Utf8JsonReader reader, Type _, JsonSerializerOptions options)
+            {
+                reader.Read();
+                reader.Read();
+                var id = reader.GetString();
+                reader.Read();
+                reader.Read();
+                var title = reader.GetString();
+                reader.Read();
+                reader.Read();
+                var url = reader.GetString();
+                reader.Read();
+                reader.Read();
+                var shop = LiverGroup.GroupList[reader.GetInt32()];
+                reader.Read();
+                reader.Read();
+                var cate = reader.GetString();
+                reader.Read();
+                reader.Read();
+                if (reader.TokenType != JsonTokenType.StartArray) throw new JsonException();
+                reader.Read();
+                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                var items = new List<ProductItem>();
+                while (true)
+                {
+                    reader.Read();
+                    reader.Read();
+                    var name = reader.GetString();
+                    reader.Read();
+                    reader.Read();
+                    var price = reader.GetInt32();
+                    reader.Read();
+                    reader.Read();
+                    var ilivers = JsonSerializer.Deserialize<List<LiverDetail>>(ref reader, options);
+                    items.Add(new(name, price, ilivers));
+                    reader.Read();
+                    if (reader.TokenType != JsonTokenType.EndObject) throw new JsonException();
+                    reader.Read();
+                    if (reader.TokenType == JsonTokenType.EndArray) break;
+                    else if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                }
+                reader.Read();
+                reader.Read();
+                var livers = JsonSerializer.Deserialize<List<LiverDetail>>(ref reader, options);
+                reader.Read();
+                reader.Read();
+                var sd = DateTime.Parse(reader.GetString(), SettingData.Culture);
+                reader.Read();
+                reader.Read();
+                var eds = reader.GetString();
+                DateTime? ed = null;
+                if (eds != null) ed = DateTime.Parse(eds, SettingData.Culture);
+                return (id, title, url, shop, cate, items, livers, sd, ed);
+            }
+
+            public void WriteBase(Utf8JsonWriter writer, T pb, JsonSerializerOptions options)
+            {
+                writer.WriteString("Id", pb.Id);
+                writer.WriteString("Title", pb.Title);
+                writer.WriteString("Url", pb.Url);
+                writer.WriteNumber("Shop", new List<LiverGroupDetail>(LiverGroup.GroupList).IndexOf(pb.Shop));
+                writer.WriteString("Category", pb.Category);
+
+                writer.WriteStartArray("Items");
+                foreach (var item in pb.Items)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("Name", item.Name);
+                    writer.WriteNumber("Price", item.Price);
+                    writer.WriteStartArray("Livers");
+                    foreach (var iliver in item.Livers)
+                        JsonSerializer.Serialize(writer, iliver, options);
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+
+                writer.WriteStartArray("Livers");
+                foreach (var liver in pb.Livers)
+                    JsonSerializer.Serialize(writer, liver, options);
+                writer.WriteEndArray();
+
+                writer.WriteString("StartDate", pb.StartDate.ToString("g"));
+                if (pb.IsExistedEnd) writer.WriteString("EndDate", pb.EndDate);
+                else writer.WriteNull("EndDate");
+            }
         }
 
     }
