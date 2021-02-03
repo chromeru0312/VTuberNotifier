@@ -24,6 +24,7 @@ namespace VTuberNotifier.Discord
                     format = format.Replace(match.Value, string.Join(tag[1], ContentFormatEnumerator[tag[0]].Select(o => o.ToString())));
                 else continue;
             }
+            format = format.Replace("\\n", "\n");
             return format;
         }
 
