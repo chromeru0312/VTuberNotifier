@@ -114,8 +114,8 @@ namespace VTuberNotifier.Liver
         public LiverGroupDetail Group { get; private set; }
         public string ChannelName { get; private set; }
 
-        public LiverDetail(LiverGroupDetail group, string name, string youtube, string twitter, string youtube_name = null)
-            : base(name, youtube, twitter)
+        public LiverDetail(int id, LiverGroupDetail group, string name, string youtube, string twitter, string youtube_name = null)
+            : base(id, name, youtube, twitter)
         {
             Group = group;
             ChannelName = youtube_name;
@@ -134,6 +134,9 @@ namespace VTuberNotifier.Liver
 
                 reader.Read();
                 reader.Read();
+                var id = reader.GetInt32();
+                reader.Read();
+                reader.Read();
                 var name = reader.GetString();
                 reader.Read();
                 reader.Read();
@@ -149,7 +152,7 @@ namespace VTuberNotifier.Liver
                 var twid = reader.GetString();
 
                 reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(group, name, ytid, twid, chname);
+                if (reader.TokenType == JsonTokenType.EndObject) return new(id, group, name, ytid, twid, chname);
                 throw new JsonException();
             }
 
@@ -157,6 +160,7 @@ namespace VTuberNotifier.Liver
             {
                 writer.WriteStartObject();
 
+                writer.WriteNumber("Id", value.Id);
                 writer.WriteString("Name", value.Name);
                 writer.WriteNumber("Group", new List<LiverGroupDetail>(LiverGroup.GroupList).IndexOf(value.Group));
                 writer.WriteString("YouTubeId", value.YouTubeId);
