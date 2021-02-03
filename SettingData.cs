@@ -7,6 +7,7 @@ using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace VTuberNotifier
@@ -27,6 +28,8 @@ namespace VTuberNotifier
         private static CommandService _DiscordCmdService = null;
         public static IServiceProvider ServicePrivider { get { if (_ServicePrivider == null) LoadSettingData(); return _ServicePrivider; } }
         private static IServiceProvider _ServicePrivider = null;
+
+        public static CultureInfo Culture { get; } = new CultureInfo("ja-JP");
 
         private static void LoadSettingData()
         {
