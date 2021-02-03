@@ -1,8 +1,6 @@
 # VTuber情報通知サービス: VTuberNotifier
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
-Discord Bot: https://discord.com/api/oauth2/authorize?client_id=799182985600958494&permissions=133184&scope=bot    
-WebHook(対応予定)    
-WebAPI(対応予定)    
+Discord Bot、WebHook(対応予定)、WebAPI(対応予定)で取得できます。    
   
 ※本サービスは現時点でベータ版の公開です。  
   機能の更新や追加を行う場合、バグの発生等稼働において支障が生じた場合は予告なくサービスを停止することがあります。    
@@ -17,6 +15,7 @@ WebAPI(対応予定)
 
 ## 使用方法
 ### Discord Bot
+Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=799182985600958494&permissions=133184&scope=bot) から追加できます    
 情報を受信するチャンネルで以下のコマンドを打つことで操作できます。
 
 新規追加：
