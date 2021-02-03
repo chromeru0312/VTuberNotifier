@@ -5,6 +5,8 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
 
@@ -21,7 +23,7 @@ namespace VTuberNotifier.Watcher.Store
             foreach (var group in LiverGroup.GroupList)
             {
                 if (!group.IsExistBooth) continue;
-                if (DataManager.Instance.TryDataLoad($"booth/{group.Name}", out List<BoothProduct> list))
+                if (DataManager.Instance.TryDataLoad($"booth/{group.GroupId}", out List<BoothProduct> list))
                     dic.Add(group, list);
                 else dic.Add(group, new List<BoothProduct>());
             }
@@ -49,8 +51,8 @@ namespace VTuberNotifier.Watcher.Store
             var nodes = doc.DocumentNode.SelectNodes(text);
             for (int i = 0; i < nodes.Count; i++)
             {
-                var id = long.Parse(nodes[i].Attributes["data-product-id"].Value.Trim());
-                if (FoundProducts[shop].FirstOrDefault(p => p.Id == id) != null) break;
+                var id = long.Parse(nodes[i].Attributes["data-product-id"].Value.Trim(), SettingData.Culture);
+                if (FoundProducts[shop].Count != 0 && FoundProducts[shop].FirstOrDefault(p => p.Id == id) != null) break;
 
                 var htmlp = await wc.DownloadStringTaskAsync($"https://{shop.GroupId}.booth.pm/items/{id}");
                 var doc1 = new HtmlDocument();
@@ -61,11 +63,10 @@ namespace VTuberNotifier.Watcher.Store
 
                 var ntxt = "//html/body/div[@id='shop_default']/div/div[@class='layout-wrap']/main/div[@id='js-item-info-detail']";
                 var n = doc1.DocumentNode.SelectSingleNode(ntxt);
-
-                var title = n.SelectSingleNode("./h1[@class='item-name bind-item-name']").InnerText.Trim();
                 var explain = n.SelectSingleNode("./div[@class='main-info-column']/div[@class='description']/span").InnerText.Trim();
 
                 var summary = n.SelectSingleNode("./div[@class='summary']");
+                var title = summary.SelectSingleNode("./h1[@class='item-name bind-item-name']").InnerText.Trim();
                 var cate = summary.SelectSingleNode("./div[@class='category']/a/span").InnerText.Trim();
                 var tags = new List<string>(summary.SelectNodes("./div[@class='tags']/ul[@id='tags']/li/a/div").Select(n => n.InnerText));
 
@@ -76,8 +77,10 @@ namespace VTuberNotifier.Watcher.Store
                     var nitems = nidiv.SelectNodes("./ul[@id='variations']/li");
                     foreach (var ni in nitems)
                     {
-                        var name = ni.SelectSingleNode("./div[@class='variation-name']/div").InnerText.Trim();
-                        var price = int.Parse(ni.SelectSingleNode("./div[@class='variation-price']").InnerText, NumberStyles.Currency);
+                        var nname = ni.SelectSingleNode("./div[@class='variation-name']/div");
+                        var name = nname == null ? title : nname.InnerText.Trim();
+                        var price = int.Parse(ni.SelectSingleNode("./div[@class='variation-price']").InnerText[1..].Trim(),
+                            NumberStyles.Currency, SettingData.Culture);
                         items.Add((name, price));
                     }
                 }
@@ -90,7 +93,8 @@ namespace VTuberNotifier.Watcher.Store
                         var label = ni.SelectSingleNode("./label");
                         if (label != null) name = label.InnerText.Trim();
                         else name = ni.SelectSingleNode("./div/span").InnerText.Trim();
-                        var price = int.Parse(ni.SelectSingleNode("./input").Attributes["data-product-price"].Value.Trim());
+                        var price = int.Parse(ni.SelectSingleNode("./input").Attributes["data-product-price"].Value.Trim(),
+                            NumberStyles.Currency, SettingData.Culture);
                         items.Add((name, price));
                     }
                 }
@@ -101,24 +105,25 @@ namespace VTuberNotifier.Watcher.Store
                 if (ndate != null)
                 {
                     var s_node = ndate.SelectSingleNode("./div[@class='start_at']");
-                    if (s_node != null) s = DateTime.Parse(s_node.InnerText.Trim().Replace("から", ""));
+                    if (s_node != null) s = DateTime.Parse(s_node.InnerText.Trim().Replace("から", ""), SettingData.Culture);
                     var e_node = ndate.SelectSingleNode("./div[@class='end_at']");
-                    if (e_node != null) e = DateTime.Parse(e_node.InnerText.Trim().Replace("まで", ""));
+                    if (e_node != null) e = DateTime.Parse(e_node.InnerText.Trim().Replace("まで", ""), SettingData.Culture);
                 }
-                list.Add(new(title, shop, id, cate, tags, explain, items, s, e));
-                Console.WriteLine($"({shop.Name}-Booth) {i + 1}/{nodes.Count} の解析完了: {title}");
+                var bp = new BoothProduct(title, shop, id, cate, tags, explain, items, s, e);
+                if (!FoundProducts[shop].Contains(bp)) list.Add(bp);
             }
             if (list.Count > 0)
             {
                 FoundProducts = new Dictionary<LiverGroupDetail, IReadOnlyList<BoothProduct>>(FoundProducts)
                 { [shop] = new List<BoothProduct>(FoundProducts[shop].Concat(list)) };
-                await DataManager.Instance.DataSaveAsync($"booth/{shop.Name}", FoundProducts[shop], true);
+                await DataManager.Instance.DataSaveAsync($"booth/{shop.GroupId}", FoundProducts[shop], true);
             }
             return list;
         }
     }
 
     [Serializable]
+    [JsonConverter(typeof(BoothProductConverter))]
     public class BoothProduct : ProductBase
     {
         public new long Id { get; }
@@ -127,8 +132,15 @@ namespace VTuberNotifier.Watcher.Store
 
         public BoothProduct(string title, LiverGroupDetail shop, long id, string category, List<string> tags,
             string explain, List<(string, int)> items, DateTime? start = null, DateTime? end = null)
-            : base(title, $"https://{shop.GroupId}.booth.pm/items/{id}", shop, category, items,
+            : base(id.ToString(), title, $"https://{shop.GroupId}.booth.pm/items/{id}", shop, category, items,
                   new(LiverTag(shop, tags).Union(DetectLiver(shop, explain))), start, end)
+        {
+            Id = id;
+            Tags = tags;
+        }
+        protected private BoothProduct(long id, string title, string url, LiverGroupDetail shop, string category,
+            List<string> tags, List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+            : base(id.ToString(), title, url, shop, category, items, livers, start, end)
         {
             Id = id;
             Tags = tags;
@@ -145,6 +157,35 @@ namespace VTuberNotifier.Watcher.Store
                 res.Add(liver);
             }
             return res;
+        }
+
+        public class BoothProductConverter : ProductConverter<BoothProduct>
+        {
+            public override BoothProduct Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+            {
+                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+
+                var (id, title, url, shop, category, items, livers, start, end) = ReadBase(ref reader, type, options);
+                reader.Read();
+                reader.Read();
+                var tags = JsonSerializer.Deserialize<List<string>>(ref reader, options);
+
+                reader.Read();
+                if (reader.TokenType == JsonTokenType.EndObject)
+                    return new(long.Parse(id, SettingData.Culture), title, url, shop, category, tags, items, livers, start, end);
+                throw new JsonException();
+            }
+
+            public override void Write(Utf8JsonWriter writer, BoothProduct value, JsonSerializerOptions options)
+            {
+                writer.WriteStartObject();
+
+                WriteBase(writer, value, options);
+                writer.WritePropertyName("Tags");
+                JsonSerializer.Serialize(writer, value.Tags, options);
+
+                writer.WriteEndObject();
+            }
         }
     }
 }
