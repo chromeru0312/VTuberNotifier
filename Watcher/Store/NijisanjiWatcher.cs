@@ -103,14 +103,15 @@ namespace VTuberNotifier.Watcher.Store
                 await DataManager.Instance.DataSaveAsync("NijisanjiStoreProduct", FoundProducts, true);
             }
             return list;
-        }
-        private static DateTime JPDateConvert(string date)
-        {
-            date = date.Replace('年', '/');
-            date = date.Replace('月', '/');
-            date = date.Replace('日', ' ');
-            date = date.Remove(date.Length - 8, date.Length - 5);
-            return DateTime.Parse(date, SettingData.Culture);
+
+            static DateTime JPDateConvert(string date)
+            {
+                date = date.Replace('年', '/');
+                date = date.Replace('月', '/');
+                date = date.Replace('日', ' ');
+                date = date.Remove(date.Length - 8, date.Length - 5);
+                return DateTime.Parse(date, SettingData.Culture);
+            }
         }
     }
 
