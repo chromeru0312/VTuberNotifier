@@ -37,9 +37,33 @@ namespace VTuberNotifier.Watcher.Store
         public virtual IReadOnlyDictionary<string, IEnumerable<object>> ContentFormatEnumerator
             => new Dictionary<string, IEnumerable<object>>()
             {
-                { "Livers", Livers }, { "ItemsNP", Items.Select(i => $"{i.Name}  \\{i.Price}") },
-                { "ItemsN", Items.Select(i => i.Name) },
+                { "Livers", Livers }
             };
+        [JsonIgnore]
+        public IReadOnlyDictionary<string, Func<LiverDetail, IEnumerable<string>>> ContentFormatEnumeratorFunc
+            => new Dictionary<string, Func<LiverDetail, IEnumerable<string>>>()
+            {
+                { "ItemsN", GetItemsN }, { "ItemsNP", GetItemsNP }
+            };
+        private IEnumerable<string> GetItems(LiverDetail liver, bool price)
+        {
+            var list = new List<string>();
+            foreach (var i in Items)
+            {
+                if (!i.Livers.Contains(liver)) continue;
+                var str = i.Name;
+                if (price) str += $"  \\{i.Price}";
+                list.Add(str);
+            }
+            if (list.Count == 0)
+            {
+                if (price) list = new(Items.Select(i => $"{i.Name}  \\{i.Price}"));
+                else list = new(Items.Select(i => i.Name));
+            }
+            return list;
+        }
+        private IEnumerable<string> GetItemsN(LiverDetail liver) => GetItems(liver, false);
+        private IEnumerable<string> GetItemsNP(LiverDetail liver) => GetItems(liver, true);
 
         public ProductBase(string title, string url, LiverGroupDetail shop, string category,
             List<(string, int)> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
@@ -122,12 +146,6 @@ namespace VTuberNotifier.Watcher.Store
             return url;
         }
 
-        public virtual string GetDiscordContent()
-        {
-            var format = "新しい商品ページが公開されました\n{Title}\n{Date}\n{URL}\n参加ライバー:{Livers: / }\n{ItemsNP:\\n}";
-            return (this as IDiscordContent).ConvertContent(format);
-        }
-
         public static bool operator ==(ProductBase a, ProductBase b) => a.Equals(b);
         public static bool operator !=(ProductBase a, ProductBase b) => !(a == b);
         public override bool Equals(object obj)
@@ -156,7 +174,8 @@ namespace VTuberNotifier.Watcher.Store
                 var url = reader.GetString();
                 reader.Read();
                 reader.Read();
-                var shop = LiverGroup.GroupList[reader.GetInt32()];
+                var gid = reader.GetInt32();
+                var shop = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
                 reader.Read();
                 reader.Read();
                 var cate = reader.GetString();
@@ -203,7 +222,7 @@ namespace VTuberNotifier.Watcher.Store
                 writer.WriteString("Id", pb.Id);
                 writer.WriteString("Title", pb.Title);
                 writer.WriteString("Url", pb.Url);
-                writer.WriteNumber("Shop", new List<LiverGroupDetail>(LiverGroup.GroupList).IndexOf(pb.Shop));
+                writer.WriteNumber("Shop", pb.Shop.Id);
                 writer.WriteString("Category", pb.Category);
 
                 writer.WriteStartArray("Items");
@@ -213,16 +232,14 @@ namespace VTuberNotifier.Watcher.Store
                     writer.WriteString("Name", item.Name);
                     writer.WriteNumber("Price", item.Price);
                     writer.WriteStartArray("Livers");
-                    foreach (var iliver in item.Livers)
-                        JsonSerializer.Serialize(writer, iliver, options);
+                    JsonSerializer.Serialize(writer, item.Livers, options);
                     writer.WriteEndArray();
                     writer.WriteEndObject();
                 }
                 writer.WriteEndArray();
 
                 writer.WriteStartArray("Livers");
-                foreach (var liver in pb.Livers)
-                    JsonSerializer.Serialize(writer, liver, options);
+                JsonSerializer.Serialize(writer, pb.Livers, options);
                 writer.WriteEndArray();
 
                 writer.WriteString("StartDate", pb.StartDate.ToString("g"));
