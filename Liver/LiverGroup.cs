@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using VTuberNotifier.Watcher.Event;
 using VTuberNotifier.Watcher.Store;
@@ -344,7 +345,9 @@ namespace VTuberNotifier.Liver
     public struct VStoreInfo
     {
         public string Url { get; }
+        [field: JsonIgnore]
         public Type NewProductEventType { get; }
+        [field: JsonIgnore]
         public Type StartSaleEventType { get; }
         internal ProductLoad ProductLoadAction { get; }
 
