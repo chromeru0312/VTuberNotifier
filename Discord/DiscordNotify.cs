@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
+using VTuberNotifier.Watcher.Event;
 
 namespace VTuberNotifier.Discord
 {
@@ -25,22 +26,17 @@ namespace VTuberNotifier.Discord
             else NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(LiverData.GetAllLiversList().Select(func));
         }
 
-        public static async Task NotifyInformation<T>(LiverDetail liver, T value)
+        public static async Task NotifyInformation(LiverDetail liver, IEventBase value)
         {
             if (!NotifyChannelList.ContainsKey(liver)) return;
             foreach(var dc in NotifyChannelList[liver])
             {
-                if (!dc.MsgContentList.ContainsKey(typeof(T))) continue;
+                if (!dc.GetContent(value.GetType(), out var only, out var content)) continue;
                 var guild = SettingData.DiscordClient.GetGuild(dc.GuildId);
                 var ch = guild.GetTextChannel(dc.ChannelId);
-                string content;
 
-                if (value is IDiscordContent c)
-                {
-                    var f = dc.MsgContentList[typeof(T)];
-                    content = f != null ? c.ConvertContent(f) : c.GetDiscordContent();
-                }
-                else content = value.ToString();
+                var l = only ? liver : null;
+                content = content != null ? value.ConvertContent(content, l) : value.GetDiscordContent(l);
 
                 await ch.SendMessageAsync(content);
             }
@@ -62,7 +58,8 @@ namespace VTuberNotifier.Discord
             var list = new List<DiscordChannel>(NotifyChannelList[liver]);
             if (!list.Contains(channel)) return false;
             var ch = list.FirstOrDefault(c => channel.Equals(c));
-            foreach(var (type, content) in channel.MsgContentList) ch.SetContent(type, content);
+            foreach(var type in channel.MsgContentList.Keys) 
+                if(ch.GetContent(type, out var b, out var c)) ch.SetContent(type, b, c);
             list.Remove(channel);
             list.Add(ch);
             NotifyChannelList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyChannelList) { [liver] = list };
@@ -98,9 +95,29 @@ namespace VTuberNotifier.Discord
             MsgContentList = dic;
         }
 
-        public void SetContent(Type type, string content)
+        public bool GetContent(Type type, out bool only, out string content)
         {
-            MsgContentList = new Dictionary<Type, string>(MsgContentList) { [type] = content };
+            only = false;
+            content = null;
+            if (!MsgContentList.ContainsKey(type)) return false;
+            var str = MsgContentList[type];
+            if (str.StartsWith("@F"))
+            {
+                only = false;
+                content = str[2..];
+            }
+            else
+            {
+                only = true;
+                if (str.StartsWith("@T")) content = str[2..];
+                else content = str;
+            }
+            return true;
+        }
+        public void SetContent(Type type, bool only, string content)
+        {
+            var s = only ? "@T" : "@F";
+            MsgContentList = new Dictionary<Type, string>(MsgContentList) { [type] = s + content };
         }
         public void RemoveContent(Type type)
         {
