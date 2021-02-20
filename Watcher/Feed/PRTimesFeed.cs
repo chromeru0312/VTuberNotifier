@@ -93,6 +93,9 @@ namespace VTuberNotifier.Watcher.Feed
             {
                 { "Livers", Livers },
             };
+        [JsonIgnore]
+        public IReadOnlyDictionary<string, Func<LiverDetail, IEnumerable<string>>> ContentFormatEnumeratorFunc
+            => new Dictionary<string, Func<LiverDetail, IEnumerable<string>>>();
 
         public PRTimesArticle(uint id, LiverGroupDetail group, string title, string url, DateTime update, string content)
         {
@@ -111,12 +114,6 @@ namespace VTuberNotifier.Watcher.Feed
                 if (content.Contains(liver.Name)) res.Add(liver);
             }
             return res;
-        }
-
-        public string GetDiscordContent()
-        {
-            var format = "新しいニュースリリースが配信されました\n{Title}({Date})\n参加ライバー:{Livers: / }\n{URL}";
-            return (this as IDiscordContent).ConvertContent(format);
         }
 
         public override int GetHashCode()
