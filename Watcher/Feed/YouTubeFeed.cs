@@ -123,7 +123,7 @@ namespace VTuberNotifier.Watcher.Feed
                 var res = await req.ExecuteAsync();
                 if (res.Items.Count == 0) return new YouTubeDeleteLiveEvent(item);
                 var video = res.Items[0];
-                if (video.Snippet.LiveBroadcastContent == "") return new YouTubeStartLiveEvent(item);
+                if (video.Snippet.LiveBroadcastContent == "live") return new YouTubeStartLiveEvent(item);
                 else if (!item.Equals(video)) return new YouTubeChangeInfoEvent(item, new(video));
                 else return null;
             }
@@ -303,7 +303,11 @@ namespace VTuberNotifier.Watcher.Feed
                 reader.Read();
                 reader.Read();
                 Address channel;
-                if (official) channel = JsonSerializer.Deserialize<LiverGroupDetail>(ref reader, options);
+                if (official)
+                {
+                    var gid = reader.GetInt32();
+                    channel = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
+                }
                 else channel = JsonSerializer.Deserialize<LiverDetail>(ref reader, options);
                 reader.Read();
                 reader.Read();
@@ -338,7 +342,7 @@ namespace VTuberNotifier.Watcher.Feed
 
                 writer.WriteBoolean("IsOfficialChannel", value.IsOfficialChannel);
                 writer.WritePropertyName("VideoChannel");
-                if (value.IsOfficialChannel) JsonSerializer.Serialize(writer, (LiverGroupDetail)value.VideoChannel, options);
+                if (value.IsOfficialChannel) writer.WriteNumberValue(value.VideoChannel.Id);
                 else JsonSerializer.Serialize(writer, (LiverDetail)value.VideoChannel, options);
                 writer.WriteString("VideoChannelName", value.VideoChannelName);
 
