@@ -36,7 +36,7 @@ namespace VTuberNotifier.Liver
             {
                 if (DataManager.Instance.TryDataLoad($"liver/{group.GroupId}", out HashSet<LiverDetail> livers))
                     LiversSeparateGroup.Add(group, livers);
-                else tasks.Add(group, InspectLivers(group));
+                else tasks.Add(group, group.LoadMembers(null));
             }
             foreach (var (group, task) in tasks) LiversSeparateGroup.Add(group, await task);
             await SaveLivers();
@@ -55,17 +55,13 @@ namespace VTuberNotifier.Liver
             var dic = new Dictionary<LiverGroupDetail, HashSet<LiverDetail>>();
             var tasks = new Dictionary<LiverGroupDetail, Task<HashSet<LiverDetail>>>();
 
-            foreach (var group in list) tasks.Add(group, InspectLivers(group));
+            foreach (var group in list)
+            {
+                HashSet<LiverDetail> set = LiversSeparateGroup.ContainsKey(group) ? LiversSeparateGroup[group] : null;
+                tasks.Add(group, group.LoadMembers(set));
+            }
             foreach (var (group, task) in tasks) dic.Add(group, await task);
             return dic;
-        }
-        private static async Task<HashSet<LiverDetail>> InspectLivers(LiverGroupDetail group)
-        {
-            using var wc = new WebClient() { Encoding = Encoding.UTF8 };
-            int count = LiversSeparateGroup.ContainsKey(group) ? LiversSeparateGroup[group].Count : 0;
-
-            var action = group.MemberLoadAction;
-            return action == null ? new() : await action.Invoke(wc, count);
         }
 
         public static HashSet<LiverDetail> GetLiversList(LiverGroupDetail group)
@@ -140,7 +136,8 @@ namespace VTuberNotifier.Liver
                 var name = reader.GetString();
                 reader.Read();
                 reader.Read();
-                var group = LiverGroup.GroupList[reader.GetInt32()];
+                var gid = reader.GetInt32();
+                var group = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
                 reader.Read();
                 reader.Read();
                 var ytid = reader.GetString();
@@ -162,7 +159,7 @@ namespace VTuberNotifier.Liver
 
                 writer.WriteNumber("Id", value.Id);
                 writer.WriteString("Name", value.Name);
-                writer.WriteNumber("Group", new List<LiverGroupDetail>(LiverGroup.GroupList).IndexOf(value.Group));
+                writer.WriteNumber("Group", value.Group.Id);
                 writer.WriteString("YouTubeId", value.YouTubeId);
                 writer.WriteString("ChannelName", value.ChannelName);
                 writer.WriteString("TwitterId", value.TwitterId);
