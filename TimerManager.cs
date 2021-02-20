@@ -31,6 +31,7 @@ namespace VTuberNotifier
             Timer.Start();
             TimerReset = DateTime.Today.AddDays(1);
             ActionList = new();
+            AlarmList = new();
             LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "Timer", "Timer Start!"));
         }
         public static void CreateInstance()
