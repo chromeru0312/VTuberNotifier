@@ -137,7 +137,7 @@ namespace VTuberNotifier.Liver
                 reader.Read();
                 reader.Read();
                 var gid = reader.GetInt32();
-                var group = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
+                var group = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid * 10000);
                 reader.Read();
                 reader.Read();
                 var ytid = reader.GetString();
@@ -159,7 +159,7 @@ namespace VTuberNotifier.Liver
 
                 writer.WriteNumber("Id", value.Id);
                 writer.WriteString("Name", value.Name);
-                writer.WriteNumber("Group", value.Group.Id);
+                writer.WriteNumber("Group", value.Group.Id / 10000);
                 writer.WriteString("YouTubeId", value.YouTubeId);
                 writer.WriteString("ChannelName", value.ChannelName);
                 writer.WriteString("TwitterId", value.TwitterId);
