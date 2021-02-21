@@ -175,7 +175,7 @@ namespace VTuberNotifier.Watcher.Store
                 reader.Read();
                 reader.Read();
                 var gid = reader.GetInt32();
-                var shop = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
+                var shop = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid * 10000);
                 reader.Read();
                 reader.Read();
                 var cate = reader.GetString();
@@ -222,7 +222,7 @@ namespace VTuberNotifier.Watcher.Store
                 writer.WriteString("Id", pb.Id);
                 writer.WriteString("Title", pb.Title);
                 writer.WriteString("Url", pb.Url);
-                writer.WriteNumber("Shop", pb.Shop.Id);
+                writer.WriteNumber("Shop", pb.Shop.Id / 10000);
                 writer.WriteString("Category", pb.Category);
 
                 writer.WriteStartArray("Items");
@@ -231,16 +231,14 @@ namespace VTuberNotifier.Watcher.Store
                     writer.WriteStartObject();
                     writer.WriteString("Name", item.Name);
                     writer.WriteNumber("Price", item.Price);
-                    writer.WriteStartArray("Livers");
+                    writer.WritePropertyName("Livers");
                     JsonSerializer.Serialize(writer, item.Livers, options);
-                    writer.WriteEndArray();
                     writer.WriteEndObject();
                 }
                 writer.WriteEndArray();
 
-                writer.WriteStartArray("Livers");
+                writer.WritePropertyName("Livers");
                 JsonSerializer.Serialize(writer, pb.Livers, options);
-                writer.WriteEndArray();
 
                 writer.WriteString("StartDate", pb.StartDate.ToString("g"));
                 if (pb.IsExistedEnd) writer.WriteString("EndDate", pb.EndDate);
