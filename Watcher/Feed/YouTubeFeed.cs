@@ -66,8 +66,10 @@ namespace VTuberNotifier.Watcher.Feed
                 req.Id = id;
                 req.MaxResults = 1;
 
-                var item = new YouTubeItem((await req.ExecuteAsync()).Items[0]);
-                if (item.Mode != YouTubeItem.YouTubeMode.Video && item.LiveStartDate > DateTime.Now)
+                var video = (await req.ExecuteAsync()).Items[0];
+                var item = new YouTubeItem(video);
+                if (item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
+                    && item.LiveStartDate > DateTime.Now)
                 {
                     FutureLiveList = new List<YouTubeItem>(FutureLiveList) { item };
                     await DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", FutureLiveList, true);
@@ -306,7 +308,7 @@ namespace VTuberNotifier.Watcher.Feed
                 if (official)
                 {
                     var gid = reader.GetInt32();
-                    channel = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
+                    channel = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid * 10000);
                 }
                 else channel = JsonSerializer.Deserialize<LiverDetail>(ref reader, options);
                 reader.Read();
@@ -342,7 +344,7 @@ namespace VTuberNotifier.Watcher.Feed
 
                 writer.WriteBoolean("IsOfficialChannel", value.IsOfficialChannel);
                 writer.WritePropertyName("VideoChannel");
-                if (value.IsOfficialChannel) writer.WriteNumberValue(value.VideoChannel.Id);
+                if (value.IsOfficialChannel) writer.WriteNumberValue(value.VideoChannel.Id / 10000);
                 else JsonSerializer.Serialize(writer, (LiverDetail)value.VideoChannel, options);
                 writer.WriteString("VideoChannelName", value.VideoChannelName);
 
