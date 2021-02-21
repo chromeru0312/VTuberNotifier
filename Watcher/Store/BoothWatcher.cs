@@ -68,7 +68,8 @@ namespace VTuberNotifier.Watcher.Store
                 var summary = n.SelectSingleNode("./div[@class='summary']");
                 var title = summary.SelectSingleNode("./h1[@class='item-name bind-item-name']").InnerText.Trim();
                 var cate = summary.SelectSingleNode("./div[@class='category']/a/span").InnerText.Trim();
-                var tags = new List<string>(summary.SelectNodes("./div[@class='tags']/ul[@id='tags']/li/a/div").Select(n => n.InnerText));
+                List<string> tags = summary.SelectSingleNode("./div[@class='tags']") == null ? new() :
+                    new(summary.SelectNodes("./div[@class='tags']/ul[@id='tags']/li/a/div").Select(n => n.InnerText));
 
                 var nidiv = summary.SelectSingleNode("./div[@class='cart-btns']/div");
                 var items = new List<(string, int)>();
