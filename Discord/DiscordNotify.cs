@@ -36,7 +36,7 @@ namespace VTuberNotifier.Discord
                 var ch = guild.GetTextChannel(dc.ChannelId);
 
                 var l = only ? liver : null;
-                content = content != null ? value.ConvertContent(content, l) : value.GetDiscordContent(l);
+                content = content != "" ? value.ConvertContent(content, l) : value.GetDiscordContent(l);
 
                 await ch.SendMessageAsync(content);
             }
