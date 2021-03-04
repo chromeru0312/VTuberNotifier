@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Timers;
-using VTuberNotifier.Discord;
+using VTuberNotifier.Notification;
 using VTuberNotifier.Watcher;
 using VTuberNotifier.Watcher.Event;
 
@@ -13,10 +13,10 @@ namespace VTuberNotifier
     {
         public static TimerManager Instance { get; private set; } = null;
         public int TimerCount { get; private set; }
-        private Dictionary<int, HashSet<Func<Task>>> ActionList { get; set; }
-        private Dictionary<DateTime, List<IEventBase>> AlarmList { get; }
+        private Dictionary<int, HashSet<Func<Task>>> ActionList { get; }
+        private Dictionary<DateTime, HashSet<Func<Task>>> AlarmList { get; }
 
-        public const int Interval = 20;
+        public const int Interval = 10;
         private readonly Timer Timer;
         private DateTime TimerReset;
         private bool disposed;
@@ -52,18 +52,26 @@ namespace VTuberNotifier
             ActionList[second].Remove(action);
         }
 
-        public void AddAlarm(DateTime dt, IEventBase evt)
+        public void AddAlarm(DateTime dt, Func<Task> action)
         {
             dt = dt.AddSeconds(-dt.Second).AddMilliseconds(-dt.Millisecond);
             if (!AlarmList.ContainsKey(dt)) AlarmList.Add(dt, new());
-            AlarmList[dt].Add(evt);
+            AlarmList[dt].Add(action);
         }
-        public void RemoveAlarm(DateTime dt, IEventBase evt)
+        public void AddEventAlarm<T>(DateTime dt, EventBase<T> evt) where T : INotificationContent
+        {
+            AddAlarm(dt, new(() => NotifyEvent.Notify(evt)));
+        }
+        public void RemoveAlarm(DateTime dt, Func<Task> action)
         {
             dt = dt.AddSeconds(-dt.Second).AddMilliseconds(-dt.Millisecond);
             if (!AlarmList.ContainsKey(dt)) return;
-            AlarmList[dt].Remove(evt);
+            AlarmList[dt].Remove(action);
             if (AlarmList[dt].Count == 0) AlarmList.Remove(dt);
+        }
+        public void RemoveEventAlarm<T>(DateTime dt, EventBase<T> evt) where T : INotificationContent
+        {
+            RemoveAlarm(dt, new(() => NotifyEvent.Notify(evt)));
         }
 
         public void Stop()
@@ -82,11 +90,9 @@ namespace VTuberNotifier
                     foreach (var func in set) list.Add(func.Invoke());
             }
             var dt = now.AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
-            if (AlarmList.TryGetValue(dt, out var evts))
+            if (AlarmList.TryGetValue(dt, out var funcs))
             {
-                foreach (var evt in evts)
-                    foreach (var liver in evt.Livers)
-                        await DiscordNotify.NotifyInformation(liver, evt);
+                foreach (var func in funcs) await func.Invoke();
                 AlarmList.Remove(dt);
             }
             if (TimerReset < now)
