@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using System.Net;
 using VTuberNotifier.Watcher;
 
 namespace VTuberNotifier
@@ -19,7 +21,7 @@ namespace VTuberNotifier
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseStartup<Startup>();
+                    webBuilder.UseStartup<Startup>().UseUrls("http://localhost:31215");
                 });
     }
 
@@ -34,13 +36,12 @@ namespace VTuberNotifier
 
         public void ConfigureServices(IServiceCollection services)
         {
-
             services.AddControllers();
-            services.AddSwaggerGen(c =>
+
+            services.Configure<ForwardedHeadersOptions>(options =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "VTuberNotifier", Version = "v1" });
+                options.KnownProxies.Add(IPAddress.Parse("10.0.0.100"));
             });
-            //services.AddExceptionHandler(option => { option. });
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -49,18 +50,18 @@ namespace VTuberNotifier
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-                app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "VTuberNotifier v1"));
                 LocalConsole.IsDebug = true;
             }
 
-            //app.UseExceptionHandler();
-
             app.UseHttpsRedirection();
-
             app.UseRouting();
 
-            app.UseAuthorization();
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
+
+            app.UseAuthentication();
 
             app.UseEndpoints(endpoints =>
             {
