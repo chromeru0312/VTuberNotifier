@@ -16,6 +16,8 @@ namespace VTuberNotifier
     {
         public static YouTubeService YouTubeService { get { if (_YouTubeService == null) LoadSettingData(); return _YouTubeService; } }
         private static YouTubeService _YouTubeService = null;
+        public static string NotificationCallback { get { if (_NotificationCallback == null) LoadSettingData(); return _NotificationCallback; } }
+        private static string _NotificationCallback = null;
 
         public static Tokens TwitterToken { get { if (_TwitterToken == null) LoadSettingData(); return _TwitterToken; } }
         private static Tokens _TwitterToken = null;
@@ -39,6 +41,7 @@ namespace VTuberNotifier
             var json = JObject.Parse(reader.ReadToEnd());
 
             _YouTubeService = new YouTubeService(new BaseClientService.Initializer() { ApiKey = json["youtube_apiKey"].Value<string>() });
+            _NotificationCallback = json["youtube_callback_url"].Value<string>();
             _TwitterToken = Tokens.Create(json["twitter_apiKey"].Value<string>(), json["twitter_apiSecret"].Value<string>(),
                 json["twitter_accessKey"].Value<string>(), json["twitter_accessSecret"].Value<string>());
             _DiscordToken = json["discord_token"].Value<string>();
