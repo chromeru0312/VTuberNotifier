@@ -1,4 +1,5 @@
-﻿using HtmlAgilityPack;
+﻿using Discord;
+using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -39,6 +40,7 @@ namespace VTuberNotifier.Watcher.Store
         {
             var list = new List<BoothProduct>();
             if (!shop.IsExistBooth) return list;
+            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"Start task. [shop:{shop.GroupId}]"));
             var shop_name = shop.GroupId;
 
             using WebClient wc = new WebClient { Encoding = Encoding.UTF8 };
@@ -119,6 +121,7 @@ namespace VTuberNotifier.Watcher.Store
                 { [shop] = new List<BoothProduct>(FoundProducts[shop].Concat(list)) };
                 await DataManager.Instance.DataSaveAsync($"booth/{shop.GroupId}", FoundProducts[shop], true);
             }
+            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"End task. [shop:{shop.GroupId}]"));
             return list;
         }
     }
