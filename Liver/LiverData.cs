@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using VTuberNotifier.Discord;
+using VTuberNotifier.Notification;
 
 namespace VTuberNotifier.Liver
 {
@@ -40,7 +38,7 @@ namespace VTuberNotifier.Liver
             }
             foreach (var (group, task) in tasks) LiversSeparateGroup.Add(group, await task);
             await SaveLivers();
-            DiscordNotify.LoadChannelList();
+            NotifyEvent.LoadChannelList();
         }
 
         private static async Task SaveLivers()
@@ -99,6 +97,23 @@ namespace VTuberNotifier.Liver
         {
             var list = group == null ? GetAllLiversList() : GetLiversList(group);
             return list.FirstOrDefault(l => l.TwitterId == id);
+        }
+
+        public static bool DetectLiver(string liver, out LiverDetail detail)
+        {
+            var search = liver.Split('=');
+
+            if (search.Length == 1) detail = LiverData.GetLiverFromNameMatch(search[0]);
+            else
+            {
+                if (search.Length > 2) for (int i = 2; i < search.Length; i++) search[1] += '=' + search[i];
+
+                if (search[0] == "name") detail = LiverData.GetLiverFromNameMatch(search[1]);
+                else if (search[0] == "youtube") detail = LiverData.GetLiverFromYouTubeId(search[1]);
+                else if (search[0] == "twitter") detail = LiverData.GetLiverFromTwitterId(search[1]);
+                else detail = null;
+            }
+            return detail != null;
         }
     }
 
