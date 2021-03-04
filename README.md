@@ -1,8 +1,8 @@
 # VTuber情報通知サービス: VTuberNotifier
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
-DiscordBot、WebHook(対応予定)、WebAPI(対応予定)で取得できます。    
+DiscordBot、WebHook(対応予定)、WebAPI(対応予定)で取得できます。
   
-※本サービスは現時点でベータ版の公開です。  
+※本サービスは現時点(2021/03/05)でベータ版の公開です。[v.0.2.2]  
   機能の更新や追加を行う場合、バグの発生等稼働において支障が生じた場合は予告なくサービスを停止することがあります。    
   稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。
 
@@ -12,17 +12,17 @@ DiscordBot、WebHook(対応予定)、WebAPI(対応予定)で取得できます�
 [対応済] にじさんじ / .LIVE / ぶいらいぶ / 774inc. / VOMS  
 [対応予定] ホロライブ
 ##### その他グループ・個人ライバー
-今後追加できるように変更する予定です。
-###サービス
+今後追加できるように変更する予定です。  
+### サービス  
 [対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) / [にじさんじオフィシャルストア](https://shop.nijisanji.jp/)  
-[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/) / [.LIVE公式ストア](https://4693.live/)
-[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)
-###通知方法
+[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/) / [.LIVE公式ストア](https://4693.live/)  
+[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)  
+### 通知方法  
 [対応済] DiscordBot  
-[対応予定] Webhook / WebAPI
+[対応予定] Webhook / WebAPI  
 
 ## 使用方法
-###共通
+### 共通
 ライバー指定方法
 ```
 以下からひとつ選んで指定してください
@@ -90,3 +90,6 @@ Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=7
 通知するサービス: 追加するサービス名をカンマ区切りで入力します。(種類は対応サービス一覧を参照)
                  無入力の場合は全てのサービスの通知を削除します。  
 ```
+
+### Webhook
+準備中...
