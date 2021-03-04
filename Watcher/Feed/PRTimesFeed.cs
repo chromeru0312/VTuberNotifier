@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using VTuberNotifier.Discord;
+using VTuberNotifier.Notification;
 using VTuberNotifier.Liver;
 
 namespace VTuberNotifier.Watcher.Feed
@@ -72,7 +72,7 @@ namespace VTuberNotifier.Watcher.Feed
     }
 
     [Serializable]
-    public class PRTimesArticle : IEquatable<PRTimesArticle>, IDiscordContent
+    public class PRTimesArticle : IEquatable<PRTimesArticle>, INotificationContent
     {
         public uint Id { get; }
         public LiverGroupDetail Group { get; }
@@ -84,7 +84,7 @@ namespace VTuberNotifier.Watcher.Feed
         [JsonIgnore]
         public IReadOnlyDictionary<string, string> ContentFormat => new Dictionary<string, string>()
             {
-                { "Date", (this as IDiscordContent).ConvertDateTime(Update) },
+                { "Date", (this as INotificationContent).ConvertDateTime(Update) },
                 { "Id", Id.ToString() }, { "Title", Title }, { "URL", Url }
             };
         [JsonIgnore]
