@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using VTuberNotifier.Discord;
+using VTuberNotifier.Notification;
 using VTuberNotifier.Liver;
 
 namespace VTuberNotifier.Watcher.Store
 {
     [Serializable]
-    public abstract class ProductBase : IDiscordContent
+    public abstract class ProductBase : INotificationContent
     {
         public string Id { get; }
         public string Title { get; }
@@ -21,16 +21,15 @@ namespace VTuberNotifier.Watcher.Store
         public DateTime StartDate { get; }
         public bool IsExistedEnd { get; }
         public DateTime EndDate { get; }
-        public bool IsOnSale
-        { get { return StartDate <= DateTime.Now && (!IsExistedEnd || EndDate > DateTime.Now); } }
+        public bool IsOnSale { get; protected private set; }
 
         protected private abstract string ExceptUrl { get; }
 
         [JsonIgnore]
         public virtual IReadOnlyDictionary<string, string> ContentFormat => new Dictionary<string, string>()
             {
-                { "Date", IsExistedEnd ? (this as IDiscordContent).ConvertDuringDateTime(StartDate, EndDate)
-                    : (this as IDiscordContent).ConvertDuringDateTime(StartDate) },
+                { "Date", IsExistedEnd ? (this as INotificationContent).ConvertDuringDateTime(StartDate, EndDate)
+                    : (this as INotificationContent).ConvertDuringDateTime(StartDate) },
                 { "Id", Id }, { "Title", Title }, { "Category", Category }, { "URL", Url }
             };
         [JsonIgnore]
@@ -101,6 +100,7 @@ namespace VTuberNotifier.Watcher.Store
             else StartDate = DateTime.Now;
             IsExistedEnd = end != null;
             if (IsExistedEnd) EndDate = (DateTime)end;
+            IsOnSale = StartDate <= DateTime.Now && (!IsExistedEnd || EndDate > DateTime.Now);
         }
 
         private protected static (List<ProductItem>, List<LiverDetail>) InspectItems(LiverGroupDetail shop, List<(string, int)> items, List<LiverDetail> livers = null)
@@ -146,8 +146,6 @@ namespace VTuberNotifier.Watcher.Store
             return url;
         }
 
-        public static bool operator ==(ProductBase a, ProductBase b) => a.Equals(b);
-        public static bool operator !=(ProductBase a, ProductBase b) => !(a == b);
         public override bool Equals(object obj)
         {
             return obj is ProductBase p && p.Id == Id;
