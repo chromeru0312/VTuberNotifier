@@ -294,7 +294,7 @@ namespace VTuberNotifier.Liver
         {
             if (HomePage.MemberPage == null) return new();
             using var wc = new WebClient() { Encoding = Encoding.UTF8 };
-            string html = await wc.DownloadStringTaskAsync(HomePage.MemberPage);//wc.DownloadString(HomePage.MemberPage);//
+            string html = await wc.DownloadStringTaskAsync(HomePage.MemberPage);
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
 
