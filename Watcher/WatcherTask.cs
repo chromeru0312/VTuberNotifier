@@ -1,12 +1,14 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VTuberNotifier.Discord;
+using VTuberNotifier.Notification.Discord;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Watcher.Event;
 using VTuberNotifier.Watcher.Feed;
 using VTuberNotifier.Watcher.Store;
+using VTuberNotifier.Notification;
 
 namespace VTuberNotifier.Watcher
 {
@@ -18,23 +20,53 @@ namespace VTuberNotifier.Watcher
         {
             TimerManager.CreateInstance();
 
+            var tm = TimerManager.Instance;
             //PRTimes.CreateInstance();
-            //TimerTaskManager.Instance.AddAction(20, PRTimesTask);
+            //TimerTaskManager.Instance.AddAction(20 * 60, PRTimesTask);
             NijisanjiWatcher.CreateInstance();
-            TimerManager.Instance.AddAction(20 * 60, NijisanjiStoreTask);
+            tm.AddAction(20 * 60, NijisanjiStoreTask);
             BoothWatcher.CreateInstance();
-            TimerManager.Instance.AddAction(20 * 60, BoothTask);
+            tm.AddAction(20 * 60, BoothTask);
             TwitterWatcher.CreateInstance();
-            //TimerTaskManager.Instance.AddAction(20, TwitterTask);
+            //tm.AddAction(TimerManager.Interval, TwitterTask);
             YouTubeFeed.CreateInstance();
-            TimerManager.Instance.AddAction(20, YouTubeTask);
+            tm.AddAction(TimerManager.Interval, YouTubeChangeTask);
 
             DiscordBot.CreateInstance();
             Task.Run(DiscordBot.Instance.BotStart);
+            Task.Run(YouTubeNotificationTask);
         }
         public static void CreateInstance()
         {
             if (Instance == null) Instance = new WatcherTask();
+        }
+
+        public async Task YouTubeNotificationTask()
+        {
+            var list = new List<Address>(LiverData.GetAllLiversList()).Concat(LiverGroup.GroupList);
+            foreach (var address in list)
+            {
+                var id = address.YouTubeId;
+                if (id == null) continue;
+                string type;
+                if (address is LiverDetail) type = "liver";
+                else type = "group";
+
+                try
+                {
+                    var b = await YouTubeFeed.CheckSubscribe(id);
+                    await LocalConsole.Log(this, new(LogSeverity.Debug, "Notification", $"Load {type}: {id} -> {b}"));
+                    if (!b)
+                    {
+                        YouTubeFeed.Instance.RegisterNotification(id);
+                        await LocalConsole.Log(this, new(LogSeverity.Info, "Notification", $"Register {type}: {id}"));
+                    }
+                }
+                catch (Exception e)
+                {
+                    await LocalConsole.Log(this, new(LogSeverity.Error, "Notification", $"Some Error occured: {id}", e));
+                }
+            }
         }
 
 
@@ -53,12 +85,7 @@ namespace VTuberNotifier.Watcher
                 if (res != null && res.Count != 0)
                 {
                     foreach (var article in res)
-                    {
-                        foreach (var liver in article.Livers)
-                        {
-                            await DiscordNotify.NotifyInformation(liver, new PRTimesNewArticleEvent(article));
-                        }
-                    }
+                        await NotifyEvent.Notify(new PRTimesNewArticleEvent(article));
                 }
             }
         }
@@ -79,11 +106,8 @@ namespace VTuberNotifier.Watcher
                 {
                     foreach (var product in res)
                     {
-                        if (!product.IsOnSale) TimerManager.Instance.AddAlarm(product.StartDate, new BoothStartSellEvent(product));
-                        foreach (var liver in product.Livers)
-                        {
-                            await DiscordNotify.NotifyInformation(liver, new BoothNewProductEvent(product));
-                        }
+                        if (!product.IsOnSale) TimerManager.Instance.AddEventAlarm(product.StartDate, new BoothStartSellEvent(product));
+                        await NotifyEvent.Notify(new BoothNewProductEvent(product));
                     }
                 }
             }
@@ -96,11 +120,28 @@ namespace VTuberNotifier.Watcher
             {
                 foreach (NijisanjiProduct product in res)
                 {
-                    if (!product.IsOnSale) TimerManager.Instance.AddAlarm(product.StartDate, new NijisanjiStartSellEvent(product));
-                    foreach (var liver in product.Livers)
+                    if (!product.IsOnSale)
                     {
-                        await DiscordNotify.NotifyInformation(liver, new NijisanjiNewProductEvent(product));
+                        var now = DateTime.Now;
+                        if (product.StartDate <= now)
+                        {
+                            var dt = DateTime.Today.AddHours(now.Hour + 1);
+                            TimerManager.Instance.AddAlarm(dt, new(() => Task(dt, product)));
+                        }
+                        else TimerManager.Instance.AddEventAlarm(product.StartDate, new NijisanjiStartSellEvent(product));
                     }
+                    await NotifyEvent.Notify(new NijisanjiNewProductEvent(product));
+                }
+            }
+
+            static async Task Task(DateTime check, NijisanjiProduct product)
+            {
+                if (await NijisanjiWatcher.Instance.CheckOnSale(product))
+                    await NotifyEvent.Notify(new NijisanjiStartSellEvent(product));
+                else
+                {
+                    var dt = DateTime.Today.AddHours(DateTime.Now.Hour + 1);
+                    TimerManager.Instance.AddAlarm(dt, new(() => Task(dt, product)));
                 }
             }
         }
@@ -142,41 +183,18 @@ namespace VTuberNotifier.Watcher
                             if (video == null) break;
                             var livers = video.Livers;
                             if (all[i] is LiverDetail l && !livers.Contains(l)) livers = new List<LiverDetail>(livers) { l };
-                            foreach (var liver in livers)
-                            {
-                                await DiscordNotify.NotifyInformation(liver, new YouTubeNewLiveEvent(video));
-                            }
+                            await NotifyEvent.Notify(new YouTubeNewLiveEvent(video));
                         }
                     }
                 }
             }
         }
 
-        public async Task YouTubeTask()
+        public async Task YouTubeChangeTask()
         {
-            var all = new List<Address>(LiverData.GetAllLiversList().Select(l => (Address)l).Concat(LiverGroup.GroupList));
-            List<Task<List<YouTubeItem>>> list = new(all.Count);
-
-            for (int i = 0; i < all.Count; i++)
-            {
-                list.Add(YouTubeFeed.Instance.ReadFeed(all[i]));
-            }
-            for (int i = 0; i < all.Count; i++)
-            {
-                var res = await list[i];
-                if (res != null && res.Count != 0)
-                {
-                    foreach (var video in res)
-                    {
-                        if (video.Mode != YouTubeItem.YouTubeMode.Video)
-                            TimerManager.Instance.AddAlarm(video.LiveStartDate, new YouTubeStartLiveEvent(video));
-                        foreach (var liver in video.Livers)
-                        {
-                            await DiscordNotify.NotifyInformation(liver, new YouTubeNewLiveEvent(video));
-                        }
-                    }
-                }
-            }
+            var list = YouTubeFeed.Instance.CheckLiveChanged();
+            foreach (var evt in list)
+                await NotifyEvent.Notify(evt);
         }
 
         public async Task OneDayTask()
