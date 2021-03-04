@@ -1,12 +1,16 @@
-﻿using Google.Apis.YouTube.v3.Data;
+﻿using Discord;
+using Google.Apis.YouTube.v3.Data;
+using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Xml.Linq;
-using VTuberNotifier.Discord;
+using System.Web;
+using VTuberNotifier.Notification;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Watcher.Event;
 
@@ -18,19 +22,22 @@ namespace VTuberNotifier.Watcher.Feed
         public IReadOnlyDictionary<Address, IReadOnlyList<YouTubeItem>> FoundLiveList { get; private set; }
         public IReadOnlyList<YouTubeItem> FutureLiveList { get; private set; }
 
+
         private YouTubeFeed()
         {
             var dic = new Dictionary<Address, IReadOnlyList<YouTubeItem>>();
             foreach (var liver in LiverData.GetAllLiversList())
             {
-                if (!DataManager.Instance.TryDataLoad($"youtube/{liver.YouTubeId}", out List<YouTubeItem> list))
+                var id = liver.YouTubeId;
+                if (!DataManager.Instance.TryDataLoad($"youtube/{id}", out List<YouTubeItem> list))
                     list = new();
                 dic.Add(liver, list);
             }
             foreach (var group in LiverGroup.GroupList)
             {
-                if (group.YouTubeId == null) continue;
-                if (!DataManager.Instance.TryDataLoad($"youtube/{group.YouTubeId}", out List<YouTubeItem> list))
+                var id = group.YouTubeId;
+                if (id == null) continue;
+                if (!DataManager.Instance.TryDataLoad($"youtube/{id}", out List<YouTubeItem> list))
                     list = new();
                 dic.Add(group, list);
             }
@@ -45,44 +52,42 @@ namespace VTuberNotifier.Watcher.Feed
             if (Instance != null) return;
             Instance = new YouTubeFeed();
         }
-
-        public async Task<List<YouTubeItem>> ReadFeed(Address address)
+        internal static async Task<bool> CheckSubscribe(string id)
         {
-            var list = new List<YouTubeItem>();
-            if (address.YouTubeId == null) return list;
-            if (!FoundLiveList.ContainsKey(address))
-                FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { { address, new List<YouTubeItem>() } };
-            var doc = XDocument.Load($"https://www.youtube.com/feeds/videos.xml?channel_id={address.YouTubeId}");
-            XNamespace ns = doc.Root.Attribute("xmlns").Value;
-            var lives = new List<XElement>(doc.Root.Elements(ns + "entry"));
-            for (int i = 0; i < lives.Count; i++)
-            {
-                if (i == 3) break;
-                var live = lives[i];
-                var id = live.Element(ns + "id").Value.Split(':')[^1].Trim();
-                if (FoundLiveList[address].FirstOrDefault(v => v.VideoId == id) != null) break;
+            var enc = Encoding.UTF8;
+            var topic = HttpUtility.UrlEncode($"https://www.youtube.com/xml/feeds/videos.xml?channel_id={id}", enc);
+            var callback = HttpUtility.UrlEncode(SettingData.NotificationCallback, enc);
+            var url = $"https://pubsubhubbub.appspot.com/subscription-details?hub.callback={callback}&hub.topic={topic}";
 
-                var req = SettingData.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
-                req.Id = id;
-                req.MaxResults = 1;
+            using var wc = new WebClient { Encoding = enc };
+            string htmll = await wc.DownloadStringTaskAsync(url);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(htmll);
+            var node = doc.DocumentNode.SelectSingleNode("/html/body/div[@class='container']/div[@class='row']/div/dl[1]");
+            var strs = node.InnerText.Trim().Split('\n');
+            return strs[4].Trim() == "verified";
+        }
 
-                var video = (await req.ExecuteAsync()).Items[0];
-                var item = new YouTubeItem(video);
-                if (item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
-                    && item.LiveStartDate > DateTime.Now)
-                {
-                    FutureLiveList = new List<YouTubeItem>(FutureLiveList) { item };
-                    await DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", FutureLiveList, true);
-                }
-                list.Add(item);
-            }
-            if (list.Count > 0)
+        public void RegisterNotification(string id)
+        {
+            try
             {
-                FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList)
-                { [address] = new List<YouTubeItem>(FoundLiveList[address].Concat(list)) };
-                await DataManager.Instance.DataSaveAsync($"youtube/{address.YouTubeId}", FoundLiveList[address], true);
+                var enc = Encoding.UTF8;
+                var topic = HttpUtility.UrlEncode($"https://www.youtube.com/xml/feeds/videos.xml?channel_id={id}", enc);
+                var callback = HttpUtility.UrlEncode(SettingData.NotificationCallback, enc);
+                var url = "https://pubsubhubbub.appspot.com/subscribe";
+                string data = $"hub.mode=subscribe&hub.verify=async&hub.callback={callback}&hub.topic={topic}";
+
+                using var wc = new WebClient { Encoding = enc };
+                wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+                string res = wc.UploadString(url, data);
+
+                LocalConsole.Log(this, new(LogSeverity.Info, "NotificationRegister", $"Registerd: {id}\nResult: {res}"));
             }
-            return list;
+            catch (Exception ex)
+            {
+                LocalConsole.Log(this, new(LogSeverity.Error, "NotificationRegister", $"Missing Register: {id}", ex));
+            }
         }
 
         public bool CheckNewLive(string id, out YouTubeItem item)
@@ -95,30 +100,61 @@ namespace VTuberNotifier.Watcher.Feed
             var res = req.Execute();
             if (res.Items.Count == 0) return false;
             var video = res.Items[0];
-            var liver = LiverData.GetLiverFromYouTubeId(video.Snippet.ChannelId);
-            if (liver == null || (FoundLiveList.ContainsKey(liver) && FoundLiveList[liver].Contains(new(video)))) return false;
-            item = new(video, true);
+            Address ch = LiverData.GetLiverFromYouTubeId(video.Snippet.ChannelId);
+            if (ch == null) ch = LiverGroup.GroupList.FirstOrDefault(g => g.YouTubeId == id);
+            if (ch == null || !FoundLiveList.ContainsKey(ch) || FoundLiveList[ch].FirstOrDefault(v => v.VideoId == id) != null)
+                return false;
+
+            item = new(video);
+            var list = new List<YouTubeItem>(FoundLiveList[ch]) { item };
+            FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [ch] = list };
+            DataManager.Instance.DataSaveAsync($"youtube/{ch.YouTubeId}", list, true).Wait();
+            if (item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
+                    && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming")
+            {
+                FutureLiveList = new List<YouTubeItem>(FutureLiveList) { item };
+                DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", FutureLiveList, true).Wait();
+            }
             return true;
         }
 
-        public void CheckLiveChanged()
+        public List<YouTubeEvent> CheckLiveChanged()
         {
             var list = new List<YouTubeItem>(FutureLiveList);
-            var tasks = new List<Task<YouTubeEvent>>();
-            foreach (var y in list) tasks.Add(CheckFutureLive(y));
-            for(int i = 0;i < tasks.Count; i++)
+            var evts = new List<YouTubeEvent>();
+            var tasks = new Task<YouTubeEvent>[list.Count];
+            var delc = 0;
+            for (int i = 0; i < list.Count; i++) tasks[i] = CheckFutureLive(list[i]);
+            for (int i = 0; i < tasks.Length; i++)
             {
                 var e = tasks[i].Result;
                 if (e != null)
                 {
-                    list.RemoveAt(i);
+                    if (e is YouTubeChangeInfoEvent ce)
+                    {
+                        list.Remove(ce.OldItem);
+                        list.Insert(i - delc, ce.Item);
+                        if(ce.OldItem.LiveStartDate != ce.Item.LiveStartDate && ce.Item.LiveStartDate != DateTime.MinValue)
+                            evts.Add(e);
+                    }
+                    else
+                    {
+                        list.Remove(e.Item);
+                        evts.Add(e);
+                    }
+                    delc++;
                 }
             }
-            FutureLiveList = list;
+            if(evts.Count != 0)
+            {
+                FutureLiveList = list;
+                DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", list, true).Wait();
+            }
+            return evts;
 
             static async Task<YouTubeEvent> CheckFutureLive(YouTubeItem item)
             {
-                var req = SettingData.YouTubeService.Videos.List("liveStreamingDetails, snippet");
+                var req = SettingData.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
                 req.Id = item.VideoId;
                 req.MaxResults = 1;
 
@@ -134,7 +170,7 @@ namespace VTuberNotifier.Watcher.Feed
 
     [Serializable]
     [JsonConverter(typeof(YouTubeItemConverter))]
-    public class YouTubeItem : IEquatable<YouTubeItem>, IDiscordContent
+    public class YouTubeItem : IEquatable<YouTubeItem>, INotificationContent
     {
         public enum YouTubeMode { Video, Premire, Live }
 
@@ -150,15 +186,13 @@ namespace VTuberNotifier.Watcher.Feed
         public DateTime LiveStartDate { get; }
         public bool IsCollaboration { get; }
         public IReadOnlyList<LiverDetail> Livers { get; }
-        public bool IsTwitterSource { get; }
 
         [JsonIgnore]
         public IReadOnlyDictionary<string, string> ContentFormat => new Dictionary<string, string>()
             {
-                { "Date", (this as IDiscordContent).ConvertDuringDateTime(LiveStartDate) },
+                { "Date", (this as INotificationContent).ConvertDuringDateTime(LiveStartDate) },
                 { "Title", VideoTitle }, { "VideoId", VideoId }, { "ChannelId", VideoChannel.YouTubeId },
-                { "ChannelName", VideoChannelName }, { "URL", $"https://www.youtube.com/watch/{VideoId}" },
-                { "Source", IsTwitterSource ? "Twitter" : "YouTube" }
+                { "ChannelName", VideoChannelName }, { "URL", $"https://www.youtube.com/watch/{VideoId}" }
             };
         [JsonIgnore]
         public IReadOnlyDictionary<string, IEnumerable<object>> ContentFormatEnumerator
@@ -170,7 +204,7 @@ namespace VTuberNotifier.Watcher.Feed
         public IReadOnlyDictionary<string, Func<LiverDetail, IEnumerable<string>>> ContentFormatEnumeratorFunc
             => new Dictionary<string, Func<LiverDetail, IEnumerable<string>>>();
 
-        public YouTubeItem(Video video, bool twitter = false)
+        public YouTubeItem(Video video)
         {
             VideoId = video.Id;
             VideoTitle = video.Snippet.Title;
@@ -209,8 +243,6 @@ namespace VTuberNotifier.Watcher.Feed
                 IsOfficialChannel = false;
                 IsCollaboration = Livers.Count == 1;
             }
-
-            IsTwitterSource = twitter;
         }
         private YouTubeItem(YouTubeMode mode, string id, string title, string description, bool official, Address ch, string ch_name,
             DateTime publish, string chat_id, DateTime start_date, List<LiverDetail> livers)
@@ -279,7 +311,6 @@ namespace VTuberNotifier.Watcher.Feed
                 return obj.VideoId.GetHashCode();
             }
         }
-
 
         public class YouTubeItemConverter : JsonConverter<YouTubeItem>
         {
