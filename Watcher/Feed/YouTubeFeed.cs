@@ -1,6 +1,5 @@
 ﻿using Discord;
 using Google.Apis.YouTube.v3.Data;
-using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,23 +51,8 @@ namespace VTuberNotifier.Watcher.Feed
             if (Instance != null) return;
             Instance = new YouTubeFeed();
         }
-        internal static async Task<bool> CheckSubscribe(string id)
-        {
-            var enc = Encoding.UTF8;
-            var topic = HttpUtility.UrlEncode($"https://www.youtube.com/xml/feeds/videos.xml?channel_id={id}", enc);
-            var callback = HttpUtility.UrlEncode(SettingData.NotificationCallback, enc);
-            var url = $"https://pubsubhubbub.appspot.com/subscription-details?hub.callback={callback}&hub.topic={topic}";
 
-            using var wc = new WebClient { Encoding = enc };
-            string htmll = await wc.DownloadStringTaskAsync(url);
-            var doc = new HtmlDocument();
-            doc.LoadHtml(htmll);
-            var node = doc.DocumentNode.SelectSingleNode("/html/body/div[@class='container']/div[@class='row']/div/dl[1]");
-            var strs = node.InnerText.Trim().Split('\n');
-            return strs[4].Trim() == "verified";
-        }
-
-        public void RegisterNotification(string id)
+        public async Task<bool> RegisterNotification(string id)
         {
             try
             {
@@ -80,13 +64,15 @@ namespace VTuberNotifier.Watcher.Feed
 
                 using var wc = new WebClient { Encoding = enc };
                 wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
-                string res = wc.UploadString(url, data);
+                await wc.UploadStringTaskAsync(url, data);
 
-                LocalConsole.Log(this, new(LogSeverity.Info, "NotificationRegister", $"Registerd: {id}\nResult: {res}"));
+                await LocalConsole.Log(this, new(LogSeverity.Info, "NotificationRegister", $"Registerd: {id}"));
+                return true;
             }
             catch (Exception ex)
             {
-                LocalConsole.Log(this, new(LogSeverity.Error, "NotificationRegister", $"Missing Register: {id}", ex));
+                await LocalConsole.Log(this, new(LogSeverity.Error, "NotificationRegister", $"Missing Register: {id}", ex));
+                return false;
             }
         }
 
