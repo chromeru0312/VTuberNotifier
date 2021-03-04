@@ -16,7 +16,7 @@ namespace VTuberNotifier
         {
             var s = "./logs";
             if (!Directory.Exists(s)) Directory.CreateDirectory(s);
-            var path = Path.Combine(Path.GetFullPath(s), $"log-{DateTime.Now:yyyyMMddHHmmss}.log");
+            var path = Path.Combine(Path.GetFullPath(s), $"log-{DateTime.Now:yyyyMMddHHmm}.log");
             ConsoleWriter = new ConsoleStream(Console.OpenStandardOutput(), new StreamWriter(path, true, Encoding.UTF8)) { AutoFlush = true };
             Console.SetOut(ConsoleWriter);
         }
@@ -25,24 +25,31 @@ namespace VTuberNotifier
         public static Task Log(string place, LogMessage msg)
         {
             string text = $"{DateTime.Now:HH:mm:ss.fff} [{place}({msg.Source})] ";
-            text = text.Replace($"{place}({place})", $"{place}");
+            text = text.Replace($"{place}({place})", place);
+            var output = true;
             switch (msg.Severity)
             {
                 case LogSeverity.Critical or LogSeverity.Error:
-                    text += $"{msg.Severity}: {msg.Message}\n{msg.Exception}";
+                    text += $"{msg.Severity}: {msg.Message}";
+                    var e = msg.Exception;
+                    if (e != null)
+                    {
+                        text += $"{e.GetType()} {e.Message}";
+                        ConsoleWriter.FileStream.WriteLine(e.StackTrace);
+                    }
                     break;
                 case LogSeverity.Warning:
                     text += $"{msg.Severity}: {msg.Message}";
                     break;
                 case LogSeverity.Debug:
-                    if (IsDebug) goto default;
-                    ConsoleWriter.FileStream.WriteLine(text + msg.Message);
-                    return Task.CompletedTask;
+                    if (!IsDebug) output = false;
+                    goto default;
                 default:
                     text += msg.Message;
                     break;
             }
-            Console.WriteLine(text);
+            if (output) Console.WriteLine(text);
+            else ConsoleWriter.FileStream.WriteLine(text);
             return Task.CompletedTask;
         }
 
