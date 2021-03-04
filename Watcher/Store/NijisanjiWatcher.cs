@@ -81,8 +81,12 @@ namespace VTuberNotifier.Watcher.Store
                     DateTime? s = null, e = null;
                     var explain = doc1.DocumentNode.SelectSingleNode("//html/body/div/main/div/div/div[@id='detail-text']/div/div").InnerText.Trim();
                     string date = null;
-                    var m1 = Regex.Match(explain, "\\d\\d?月\\d\\d?日.*\\d\\d:\\d\\d～\\d\\d?月\\d\\d?日.*\\d\\d:\\d\\d");
-                    var m2 = Regex.Match(explain, "\\d{4}年\\d\\d?月\\d\\d?日.*\\d\\d:\\d\\d～\\d{4}年\\d\\d?月\\d\\d?日.*\\d\\d:\\d\\d");
+                    explain = explain.Replace('年', '/');
+                    explain = explain.Replace('月', '/');
+                    explain = explain.Replace('日', ' ');
+                    explain = explain.Replace('〜', '～');
+                    var m1 = Regex.Match(explain, "\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
+                    var m2 = Regex.Match(explain, "\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
                     if (m1.Success) date = m1.Value;
                     else if (m2.Success) date = m2.Value;
                     if (date != null)
