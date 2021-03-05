@@ -41,7 +41,7 @@ namespace VTuberNotifier.Watcher.Store
             var end = false;
             var page = 0;
 
-            while (!end && page < 4)
+            while (!end && page < 3)
             {
                 var htmll = await wc.DownloadStringTaskAsync($"https://shop.nijisanji.jp/s/niji/item/list?so=NW&page={page}");
                 var doc = new HtmlDocument();
