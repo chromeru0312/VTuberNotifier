@@ -21,8 +21,8 @@ namespace VTuberNotifier.Watcher
             TimerManager.CreateInstance();
 
             var tm = TimerManager.Instance;
-            //PRTimes.CreateInstance();
-            //TimerTaskManager.Instance.AddAction(20 * 60, PRTimesTask);
+            PRTimesFeed.CreateInstance();
+            tm.AddAction(20 * 60, PRTimesTask);
             NijisanjiWatcher.CreateInstance();
             tm.AddAction(20 * 60, NijisanjiStoreTask);
             BoothWatcher.CreateInstance();
