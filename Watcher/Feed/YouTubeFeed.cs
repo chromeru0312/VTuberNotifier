@@ -213,8 +213,17 @@ namespace VTuberNotifier.Watcher.Feed
             }
 
             var chid = video.Snippet.ChannelId;
-            Livers = DetectLiver(VideoDescription,
-                LiverData.GetAllLiversList().FirstOrDefault(l => l.YouTubeId == chid));
+            var channel = LiverData.GetAllLiversList().FirstOrDefault(l => l.YouTubeId == chid);
+            List<LiverDetail> livers = new(LiverData.GetAllLiversList()), res = channel == null ? new() : new() { channel };
+            foreach (var liver in livers)
+            {
+                if (liver == channel) continue;
+
+                if (VideoDescription.Contains(liver.YouTubeId) || VideoDescription.Contains('@' + liver.ChannelName) ||
+                    VideoTitle.Contains(liver.Name))
+                    res.Add(liver);
+            }
+
             var group = LiverGroup.GroupList.FirstOrDefault(g => g.YouTubeId == chid);
             if (group != null)
             {
@@ -245,21 +254,6 @@ namespace VTuberNotifier.Watcher.Feed
             LiveStartDate = start_date;
             Livers = livers;
             IsCollaboration = official || Livers.Count == 1;
-        }
-
-        private static List<LiverDetail> DetectLiver(string content, LiverDetail channel)
-        {
-            List<LiverDetail> livers = new(LiverData.GetAllLiversList()),
-                res = channel == null ? new() : new() { channel };
-            foreach (var liver in livers)
-            {
-                if (liver == channel) continue;
-
-                if (content.Contains(liver.YouTubeId)) res.Add(liver);
-                else if (content.Contains('@'+ liver.ChannelName)) res.Add(liver);
-                //else if (content.Contains(liver.Name)) res.Add(liver);
-            }
-            return res;
         }
 
         public override bool Equals(object obj)
