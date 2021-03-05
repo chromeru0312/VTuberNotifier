@@ -23,7 +23,7 @@ namespace VTuberNotifier.Watcher.Feed
             foreach (var group in LiverGroup.GroupList)
             {
                 if (!group.IsExistBooth) continue;
-                if (DataManager.Instance.TryDataLoad($"article/{group.Name}", out List<PRTimesArticle> list))
+                if (DataManager.Instance.TryDataLoad($"article/{group.GroupId}", out List<PRTimesArticle> list))
                     dic.Add(group, list);
                 else dic.Add(group, new List<PRTimesArticle>());
             }
@@ -45,12 +45,11 @@ namespace VTuberNotifier.Watcher.Feed
             var articles = new List<XElement>(xml.Root.Elements(ns + "item"));
             for (int i = 0; i < articles.Count; i++)
             {
-                if (i == 5) break;
+                if (i == 10) break;
                 var article = articles[i];
                 var link = article.Element(ns + "link").Value.Trim();
                 var title = article.Element(ns + "title").Value.Trim();
                 var aid = uint.Parse(link.Split('/')[^1].Split('.')[0], SettingData.Culture) + (uint)cid * 10000;
-                Console.WriteLine($"(PRTimes-{group.Name}) ID:{aid} / Title:{title}");
 
                 var doc = new HtmlDocument();
                 string html = await wc.DownloadStringTaskAsync(link);
@@ -65,7 +64,7 @@ namespace VTuberNotifier.Watcher.Feed
             {
                 FoundArticles = new Dictionary<LiverGroupDetail, IReadOnlyList<PRTimesArticle>>(FoundArticles)
                 { [group] = new List<PRTimesArticle>(FoundArticles[group].Concat(list)) };
-                await DataManager.Instance.DataSaveAsync($"article/{group.Name}", FoundArticles[group], true);
+                await DataManager.Instance.DataSaveAsync($"article/{group.GroupId}", FoundArticles[group], true);
             }
             return list;
         }
@@ -110,9 +109,7 @@ namespace VTuberNotifier.Watcher.Feed
         {
             List<LiverDetail> livers = new(LiverData.GetLiversList(group)), res = new();
             foreach (var liver in livers)
-            {
                 if (content.Contains(liver.Name)) res.Add(liver);
-            }
             return res;
         }
 
