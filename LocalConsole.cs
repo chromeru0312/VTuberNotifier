@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace VTuberNotifier
 {
-    
     public static class LocalConsole
     {
         public static bool IsDebug { get; set; } = false;
