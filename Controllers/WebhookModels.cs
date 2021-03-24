@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Net;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace VTuberNotifier.Controllers
 {
     public class WebhookRequest
     {
-        public string ReqestType { get; set; }
         public string Url { get; set; }
         public string Liver { get; set; }
         public List<ServiceContent> Services { get; set; }
@@ -24,6 +21,8 @@ namespace VTuberNotifier.Controllers
     {
         public int Code { get; }
         public string Message { get; }
+        [JsonIgnore]
+        public bool IsSuccess { get { return Code < 400; } }
 
         public WebhookResponse(HttpStatusCode code, string msg) : this((int)code, msg) { }
         public WebhookResponse(int code, string msg)
