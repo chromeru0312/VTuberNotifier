@@ -14,6 +14,7 @@ namespace VTuberNotifier.Notification
     {
         public static IReadOnlyDictionary<LiverDetail, IReadOnlyList<DiscordChannel>> NotifyDiscordList { get; private set; } = null;
         public static IReadOnlyDictionary<LiverDetail, IReadOnlyList<WebhookDestination>> NotifyWebhookList { get; private set; } = null;
+        public static IReadOnlyDictionary<IEventBase, IReadOnlyList<long>> NotifyDiscordMsgs { get; private set; } = null;
 
         internal static void LoadChannelList()
         {
@@ -79,8 +80,7 @@ namespace VTuberNotifier.Notification
             if (AddNotifyList(channel, ref list))
             {
                 NotifyDiscordList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyDiscordList) { [liver] = list };
-                var data = NotifyDiscordList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
-                DataManager.Instance.DataSave("NotifyDiscordList", data, true);
+                SaveDiscordList();
                 return true;
             }
             else return false;
@@ -91,8 +91,7 @@ namespace VTuberNotifier.Notification
             if (AddNotifyList(destination, ref list))
             {
                 NotifyWebhookList = new Dictionary<LiverDetail, IReadOnlyList<WebhookDestination>>(NotifyWebhookList) { [liver] = list };
-                var data = NotifyWebhookList.Select(p => new KeyValuePair<int, List<WebhookDestination>>(p.Key.Id, new(p.Value)));
-                DataManager.Instance.DataSave("NotifyWebhookList", data, true);
+                SaveWebhookList();
                 return true;
             }
             else return false;
@@ -118,8 +117,7 @@ namespace VTuberNotifier.Notification
             if (UpdateNotifyList(channel, ref list))
             {
                 NotifyDiscordList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyDiscordList) { [liver] = list };
-                var data = NotifyDiscordList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
-                DataManager.Instance.DataSave("NotifyDiscordList", data, true);
+                SaveDiscordList();
                 return true;
             }
             else return false;
@@ -130,8 +128,7 @@ namespace VTuberNotifier.Notification
             if (UpdateNotifyList(destination, ref list))
             {
                 NotifyWebhookList = new Dictionary<LiverDetail, IReadOnlyList<WebhookDestination>>(NotifyWebhookList) { [liver] = list };
-                var data = NotifyWebhookList.Select(p => new KeyValuePair<int, List<WebhookDestination>>(p.Key.Id, new(p.Value)));
-                DataManager.Instance.DataSave("NotifyWebhookList", data, true);
+                SaveWebhookList();
                 return true;
             }
             else return false;
@@ -153,8 +150,7 @@ namespace VTuberNotifier.Notification
             if (RemoveNotifyList(channel, ref list))
             {
                 NotifyDiscordList = new Dictionary<LiverDetail, IReadOnlyList<DiscordChannel>>(NotifyDiscordList) { [liver] = list };
-                var data = NotifyDiscordList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
-                DataManager.Instance.DataSave("NotifyDiscordList", data, true);
+                SaveDiscordList();
                 return true;
             }
             else return false;
@@ -165,8 +161,7 @@ namespace VTuberNotifier.Notification
             if (RemoveNotifyList(destination, ref list))
             {
                 NotifyWebhookList = new Dictionary<LiverDetail, IReadOnlyList<WebhookDestination>>(NotifyWebhookList) { [liver] = list };
-                var data = NotifyWebhookList.Select(p => new KeyValuePair<int, List<WebhookDestination>>(p.Key.Id, new(p.Value)));
-                DataManager.Instance.DataSave("NotifyWebhookList", data, true);
+                SaveWebhookList();
                 return true;
             }
             else return false;
@@ -176,6 +171,17 @@ namespace VTuberNotifier.Notification
             if (value == null || !list.Contains(value)) return false;
             list.Remove(value);
             return true;
+        }
+
+        private static void SaveDiscordList()
+        {
+            var data = NotifyDiscordList.Select(p => new KeyValuePair<int, List<DiscordChannel>>(p.Key.Id, new(p.Value)));
+            DataManager.Instance.DataSave("NotifyDiscordList", data, true);
+        }
+        private static void SaveWebhookList()
+        {
+            var data = NotifyWebhookList.Select(p => new KeyValuePair<int, List<WebhookDestination>>(p.Key.Id, new(p.Value)));
+            DataManager.Instance.DataSave("NotifyWebhookList", data, true);
         }
 
         public static bool DetectTypes(LiverDetail liver, out Type[] types, params string[] servs)
