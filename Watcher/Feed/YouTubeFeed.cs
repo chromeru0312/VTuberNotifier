@@ -17,10 +17,13 @@ namespace VTuberNotifier.Watcher.Feed
 {
     public class YouTubeFeed
     {
+        public enum EventType
+        {
+            Create = 0, Change = 1, Remove = 2, Unknown = -1
+        }
         public static YouTubeFeed Instance { get; private set; }
         public IReadOnlyDictionary<Address, IReadOnlyList<YouTubeItem>> FoundLiveList { get; private set; }
         public IReadOnlyList<YouTubeItem> FutureLiveList { get; private set; }
-
 
         private YouTubeFeed()
         {
@@ -76,7 +79,7 @@ namespace VTuberNotifier.Watcher.Feed
             }
         }
 
-        public bool CheckNewLive(string id, out YouTubeItem item)
+        public EventType CheckNewLive(string id, out YouTubeItem item)
         {
             item = null;
             var req = SettingData.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
@@ -84,24 +87,44 @@ namespace VTuberNotifier.Watcher.Feed
             req.MaxResults = 1;
 
             var res = req.Execute();
-            if (res.Items.Count == 0) return false;
+            if (res.Items.Count == 0) return EventType.Remove;
             var video = res.Items[0];
             Address ch = LiverData.GetLiverFromYouTubeId(video.Snippet.ChannelId);
             if (ch == null) ch = LiverGroup.GroupList.FirstOrDefault(g => g.YouTubeId == id);
-            if (ch == null || !FoundLiveList.ContainsKey(ch) || FoundLiveList[ch].FirstOrDefault(v => v.VideoId == id) != null)
-                return false;
+            if (ch == null || !FoundLiveList.ContainsKey(ch)) return EventType.Unknown;
 
             item = new(video);
+            var old = FoundLiveList[ch].FirstOrDefault(v => v.VideoId == id);
             var list = new List<YouTubeItem>(FoundLiveList[ch]) { item };
+            EventType type;
+            bool add;
+            if (old != null)
+            {
+                list.Remove(old);
+                var future = new List<YouTubeItem>(FutureLiveList);
+                if(future.Contains(old))
+                {
+                    future.Remove(old);
+                    FutureLiveList = future;
+                }
+                add = true;
+                type = EventType.Change;
+            }
+            else
+            {
+                add = item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
+                    && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming";
+                type = EventType.Create;
+            }
             FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [ch] = list };
             DataManager.Instance.DataSaveAsync($"youtube/{ch.YouTubeId}", list, true).Wait();
-            if (item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
-                    && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming")
+
+            if (add)
             {
                 FutureLiveList = new List<YouTubeItem>(FutureLiveList) { item };
                 DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", FutureLiveList, true).Wait();
             }
-            return true;
+            return type;
         }
 
         public List<YouTubeEvent> CheckLiveChanged()
@@ -223,6 +246,7 @@ namespace VTuberNotifier.Watcher.Feed
                     VideoTitle.Contains(liver.Name))
                     res.Add(liver);
             }
+            Livers = res;
 
             var group = LiverGroup.GroupList.FirstOrDefault(g => g.YouTubeId == chid);
             if (group != null)
@@ -233,8 +257,7 @@ namespace VTuberNotifier.Watcher.Feed
             }
             else
             {
-                var liver = LiverData.GetAllLiversList().FirstOrDefault(l => l.YouTubeId == chid);
-                VideoChannel = liver ?? throw new NullReferenceException();
+                VideoChannel = channel ?? throw new NullReferenceException();
                 IsOfficialChannel = false;
                 IsCollaboration = Livers.Count == 1;
             }
@@ -318,8 +341,8 @@ namespace VTuberNotifier.Watcher.Feed
                 Address channel;
                 if (official)
                 {
-                    var gid = reader.GetInt32();
-                    channel = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid * 10000);
+                    var gid = JsonSerializer.Deserialize<Address>(ref reader, options).Id;
+                    channel = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
                 }
                 else channel = JsonSerializer.Deserialize<LiverDetail>(ref reader, options);
                 reader.Read();
@@ -355,13 +378,13 @@ namespace VTuberNotifier.Watcher.Feed
 
                 writer.WriteBoolean("IsOfficialChannel", value.IsOfficialChannel);
                 writer.WritePropertyName("VideoChannel");
-                if (value.IsOfficialChannel) writer.WriteNumberValue(value.VideoChannel.Id / 10000);
+                if (value.IsOfficialChannel) JsonSerializer.Serialize(writer, value.VideoChannel, options);
                 else JsonSerializer.Serialize(writer, (LiverDetail)value.VideoChannel, options);
                 writer.WriteString("VideoChannelName", value.VideoChannelName);
 
-                writer.WriteString("PublishedDate", value.PublishedDate.ToString("g"));
+                writer.WriteString("PublishedDate", value.PublishedDate.ToString("G"));
                 writer.WriteString("LiveChatId", value.LiveChatId);
-                writer.WriteString("LiveStartDate", value.LiveStartDate.ToString("g"));
+                writer.WriteString("LiveStartDate", value.LiveStartDate.ToString("G"));
                 writer.WritePropertyName("Livers");
                 JsonSerializer.Serialize(writer, value.Livers, options);
 
