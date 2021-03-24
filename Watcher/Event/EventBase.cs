@@ -68,7 +68,7 @@ namespace VTuberNotifier.Watcher.Event
                 var type = reader.GetString();
                 reader.Read();
                 reader.Read();
-                var date = reader.GetDateTime();
+                var date = DateTime.Parse(reader.GetString());
                 reader.Read();
                 reader.Read();
                 var item = JsonSerializer.Deserialize<T>(ref reader, options);
