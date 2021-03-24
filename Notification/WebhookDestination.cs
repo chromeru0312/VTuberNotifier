@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace VTuberNotifier.Notification
 {
+    [Serializable]
+    [JsonConverter(typeof(WebhookDestinationConverter))]
     public class WebhookDestination : NotificationAddress, IEquatable<WebhookDestination>
     {
         public string Url { get; }
