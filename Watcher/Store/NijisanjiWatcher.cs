@@ -36,7 +36,7 @@ namespace VTuberNotifier.Watcher.Store
         public async Task<List<ProductBase>> GetNewProduct()
         {
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "Start task."));
-            using WebClient wc = new WebClient { Encoding = Encoding.UTF8 };
+            using var wc = new WebClient { Encoding = Encoding.UTF8 };
             var list = new List<ProductBase>();
             var end = false;
             var page = 0;
@@ -80,20 +80,27 @@ namespace VTuberNotifier.Watcher.Store
 
                     DateTime? s = null, e = null;
                     var explain = doc1.DocumentNode.SelectSingleNode("//html/body/div/main/div/div/div[@id='detail-text']/div/div").InnerText.Trim();
-                    string date = null;
                     explain = explain.Replace('年', '/');
                     explain = explain.Replace('月', '/');
                     explain = explain.Replace('日', ' ');
                     explain = explain.Replace('〜', '～');
                     var m1 = Regex.Match(explain, "\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
                     var m2 = Regex.Match(explain, "\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
-                    if (m1.Success) date = m1.Value;
-                    else if (m2.Success) date = m2.Value;
-                    if (date != null)
+                    if (m1.Success)
                     {
-                        var dates = date.Split('～');
-                        s = DateTime.Parse(dates[0], SettingData.Culture);
-                        e = DateTime.Parse(dates[1], SettingData.Culture);
+                        var dates = m1.Value.Split('～');
+                        var str_s = $"{Regex.Match(dates[0], "\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[0], "\\d\\d:\\d\\d").Value}";
+                        s = DateTime.ParseExact(str_s, "M/d HH:mm", SettingData.Culture);
+                        var str_e = $"{Regex.Match(dates[1], "\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[1], "\\d\\d:\\d\\d").Value}";
+                        e = DateTime.ParseExact(str_e, "M/d HH:mm", SettingData.Culture);
+                    }
+                    else if (m2.Success)
+                    {
+                        var dates = m2.Value.Split('～');
+                        var str_s = $"{Regex.Match(dates[0], "\\d{4}/\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[0], "\\d\\d:\\d\\d").Value}";
+                        s = DateTime.ParseExact(str_s, "yyyy/M/d HH:mm", SettingData.Culture);
+                        var str_e = $"{Regex.Match(dates[1], "\\d{4}/\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[1], "\\d\\d:\\d\\d").Value}";
+                        e = DateTime.ParseExact(str_e, "yyyy/M/d HH:mm", SettingData.Culture);
                     }
 
                     var np = new NijisanjiProduct(title, url, cate, genre, explain, plist, s, e, coming);
