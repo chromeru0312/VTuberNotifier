@@ -1,9 +1,11 @@
-﻿using HtmlAgilityPack;
+﻿using Discord;
+using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -22,7 +24,7 @@ namespace VTuberNotifier.Watcher.Feed
             var dic = new Dictionary<LiverGroupDetail, IReadOnlyList<PRTimesArticle>>();
             foreach (var group in LiverGroup.GroupList)
             {
-                if (!group.IsExistBooth) continue;
+                if (group.ProducedCompany == null) continue;
                 if (DataManager.Instance.TryDataLoad($"article/{group.GroupId}", out List<PRTimesArticle> list))
                     dic.Add(group, list);
                 else dic.Add(group, new List<PRTimesArticle>());
@@ -38,18 +40,21 @@ namespace VTuberNotifier.Watcher.Feed
         public async Task<List<PRTimesArticle>> ReadFeed(LiverGroupDetail group)
         {
             var list = new List<PRTimesArticle>();
+            if (group.ProducedCompany == null) return list;
+            var id = group.ProducedCompany.Id;
+            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"Start task. [company:{group.GroupId}]"));
+
             using var wc = new WebClient() { Encoding = Encoding.UTF8 };
-            var cid = group.ProducedCompany.Id;
-            XDocument xml = XDocument.Load($"https://prtimes.jp/companyrdf.php?company_id={cid}");
+            XDocument xml = XDocument.Load($"https://prtimes.jp/companyrdf.php?company_id={id}");
             XNamespace ns = xml.Root.Attribute("xmlns").Value;
             var articles = new List<XElement>(xml.Root.Elements(ns + "item"));
             for (int i = 0; i < articles.Count; i++)
             {
-                if (i == 10) break;
                 var article = articles[i];
                 var link = article.Element(ns + "link").Value.Trim();
                 var title = article.Element(ns + "title").Value.Trim();
-                var aid = uint.Parse(link.Split('/')[^1].Split('.')[0], SettingData.Culture) + (uint)cid * 10000;
+                var aid = uint.Parse(link.Split('/')[^1].Split('.')[0], SettingData.Culture) + (uint)id * 10000;
+                if (FoundArticles[group].FirstOrDefault(a => a.Id == aid) != null) break;
 
                 var doc = new HtmlDocument();
                 string html = await wc.DownloadStringTaskAsync(link);
@@ -66,11 +71,13 @@ namespace VTuberNotifier.Watcher.Feed
                 { [group] = new List<PRTimesArticle>(FoundArticles[group].Concat(list)) };
                 await DataManager.Instance.DataSaveAsync($"article/{group.GroupId}", FoundArticles[group], true);
             }
+            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"End task. [company:{group.GroupId}]"));
             return list;
         }
     }
 
     [Serializable]
+    [JsonConverter(typeof(PRTimesArticleConverter))]
     public class PRTimesArticle : IEquatable<PRTimesArticle>, INotificationContent
     {
         public uint Id { get; }
@@ -97,12 +104,15 @@ namespace VTuberNotifier.Watcher.Feed
             => new Dictionary<string, Func<LiverDetail, IEnumerable<string>>>();
 
         public PRTimesArticle(uint id, LiverGroupDetail group, string title, string url, DateTime update, string content)
+            : this(id, group, title, url, update, DetectLiver(group, content)) { }
+        private PRTimesArticle(uint id, LiverGroupDetail group, string title, string url, DateTime update, List<LiverDetail> livers)
         {
             Id = id;
+            Group = group;
             Title = title;
             Url = url;
             Update = update;
-            Livers = DetectLiver(group, content);
+            Livers = livers;
         }
 
         private static List<LiverDetail> DetectLiver(LiverGroupDetail group, string content)
@@ -125,6 +135,55 @@ namespace VTuberNotifier.Watcher.Feed
         public bool Equals(PRTimesArticle other)
         {
             return Id == other.Id && Update == other.Update;
+        }
+
+        public class PRTimesArticleConverter : JsonConverter<PRTimesArticle>
+        {
+            public override PRTimesArticle Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+            {
+                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+
+                reader.Read();
+                reader.Read();
+                var id = reader.GetUInt32();
+                reader.Read();
+                reader.Read();
+                var gid = JsonSerializer.Deserialize<Address>(ref reader, options).Id;
+                var group = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
+                reader.Read();
+                reader.Read();
+                var title = reader.GetString();
+                reader.Read();
+                reader.Read();
+                var url = reader.GetString();
+                reader.Read();
+                reader.Read();
+                var update = DateTime.Parse(reader.GetString());
+                reader.Read();
+                reader.Read();
+                var livers = JsonSerializer.Deserialize<List<LiverDetail>>(ref reader, options);
+
+                reader.Read();
+                if (reader.TokenType == JsonTokenType.EndObject) return new(id, group, title, url, update, livers);
+                throw new JsonException();
+            }
+
+            public override void Write(Utf8JsonWriter writer, PRTimesArticle value, JsonSerializerOptions options)
+            {
+                writer.WriteStartObject();
+
+                writer.WriteNumber("Id", value.Id);
+                writer.WritePropertyName("Group");
+                //var a = ;
+                JsonSerializer.Serialize(writer, (Address)value.Group, options);
+                writer.WriteString("Title", value.Title);
+                writer.WriteString("Url", value.Url);
+                writer.WriteString("Update", value.Update.ToString("G"));
+                writer.WritePropertyName("Livers");
+                JsonSerializer.Serialize(writer, value.Livers, options);
+
+                writer.WriteEndObject();
+            }
         }
     }
 }
