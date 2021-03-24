@@ -1,10 +1,8 @@
-﻿using Discord.Commands;
-using System;
+﻿using Discord;
+using Discord.Commands;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
-using VTuberNotifier.Watcher.Event;
 
 namespace VTuberNotifier.Notification.Discord
 {
@@ -29,8 +27,18 @@ namespace VTuberNotifier.Notification.Discord
             }
             foreach (var t in types) ch.AddContent(t, only);
 
-            if (NotifyEvent.AddDiscordList(detail, ch)) await ReplyAsync("Success.");
-            else await SendError(this, 2, "Some errors has occured.");
+            if (NotifyEvent.AddDiscordList(detail, ch))
+            {
+                await ReplyAsync("Success.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Add", "Add new service."));
+                DiscordBot.Instance.AddChannel(Context.Guild.Id, Context.Channel.Id);
+            }
+            else
+            {
+                await SendError(this, 2, "Some errors has occured.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Warning, "Add", "Failed to add service."));
+            }
+
         }
 
         [Command("vinfo set")]
@@ -54,8 +62,16 @@ namespace VTuberNotifier.Notification.Discord
             }
             ch.SetContent(type, only, content);
 
-            if (NotifyEvent.UpdateDiscordList(detail, ch)) await ReplyAsync("Success.");
-            else await SendError(this, 2, "This channel or service is not alrady added.");
+            if (NotifyEvent.UpdateDiscordList(detail, ch))
+            {
+                await ReplyAsync("Success.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Update", "Update service."));
+            }
+            else
+            {
+                await SendError(this, 2, "This channel or service is not alrady added.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Warning, "Update", "Failed to update service."));
+            }
         }
 
         [Command("vinfo remove")]
@@ -82,9 +98,22 @@ namespace VTuberNotifier.Notification.Discord
                 rem = ch.MsgContentList.Count == 0;
             }
             else rem = true;
-            if (!rem && NotifyEvent.UpdateDiscordList(detail, ch)) await ReplyAsync("Success.");
-            else if (rem && NotifyEvent.RemoveDiscordList(detail, ch)) await ReplyAsync("Success.");
-            else await SendError(this, 2, "This channel is not alrady added.");
+            if (!rem && NotifyEvent.UpdateDiscordList(detail, ch))
+            {
+                await ReplyAsync("Success.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Remove", "Update service."));
+            }
+            else if (rem && NotifyEvent.RemoveDiscordList(detail, ch))
+            {
+                await ReplyAsync("Success.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Remove", "Remove service."));
+                DiscordBot.Instance.RemoveChannel(Context.Guild.Id, Context.Channel.Id);
+            }
+            else
+            {
+                await SendError(this, 2, "This channel is not alrady added.");
+                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Warning, "Remove", "Failed to remove service."));
+            }
         }
 
         [Command("vinfo")]
