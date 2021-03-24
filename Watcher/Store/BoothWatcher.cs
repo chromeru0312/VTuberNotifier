@@ -43,7 +43,7 @@ namespace VTuberNotifier.Watcher.Store
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"Start task. [shop:{shop.GroupId}]"));
             var shop_name = shop.GroupId;
 
-            using WebClient wc = new WebClient { Encoding = Encoding.UTF8 };
+            using var wc = new WebClient { Encoding = Encoding.UTF8 };
             string htmll = await wc.DownloadStringTaskAsync($"https://{shop_name}.booth.pm/");
             var doc = new HtmlDocument();
             doc.LoadHtml(htmll);
