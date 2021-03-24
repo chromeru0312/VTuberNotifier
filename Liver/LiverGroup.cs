@@ -1,5 +1,6 @@
 ﻿using Discord;
 using HtmlAgilityPack;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,40 +50,81 @@ namespace VTuberNotifier.Liver
         public static IReadOnlyList<LiverGroupDetail> GroupList { get; }
             = new List<LiverGroupDetail> { Nijiasnji, Hololive, Dotlive, VLive, V774inc, VOMS, None };
 
-        private static async Task<HashSet<LiverDetail>> NijisanjiMembers(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set)
+        private static async Task<HashSet<LiverDetail>> NijisanjiMembers(WebClient wc, HtmlDocument _, HashSet<LiverDetail> set)
         {
-            var txt = "/html/body/div/div/div/div/section/div/div/div/div/div/div/div/div/" +
-                "div[@class='elementor-tabs-content-wrapper']/div[@id='elementor-tab-content-7551']/div[@id='liver_list']/div";
-            var livers = doc.DocumentNode.SelectNodes(txt);
-            if (livers.Count != set.Count)
+            var str = await wc.DownloadStringTaskAsync(GetUrl("moira"));
+            var livers = JObject.Parse(str)["pageProps"]["livers"];
+            var count = livers["totalCount"].Value<int>();
+            if (count != set.Count)
             {
-                var dic = new SortedDictionary<int, LiverDetail>();
-                for (int i = 0; i < livers.Count; i++)
+                set = new();
+                var no = 10001;
+                foreach (var c in livers["contents"].AsEnumerable())
                 {
-                    var liver = livers[i];
-                    int no = int.Parse(liver.Attributes["data-debut"].Value, SettingData.Culture) / 10;
+                    var url = GetUrl(c["slug"].Value<string>());
+                    var str_d = await wc.DownloadStringTaskAsync(url);
+                    var liver = JObject.Parse(str_d)["pageProps"]["liver"];
 
-                    var url = liver.SelectSingleNode("./div/div/a").Attributes["href"].Value.Trim();
-                    var name = liver.SelectSingleNode("./div/div/a/span").InnerText.Trim();
-                    var htmlm = await wc.DownloadStringTaskAsync(url);
-                    var doc1 = new HtmlDocument();
-                    doc1.LoadHtml(htmlm);
+                    var name = liver["name"].Value<string>();
+                    var links = liver["social_links"];
+                    var youtube = links["youtube"].Value<string>();
+                    var twitter = links["twitter"].Value<string>();
 
-                    var txtm = "//html/body/div/div/div/div/section/div/div/div/div/div/div/div/div/a";
-                    var media = doc1.DocumentNode.SelectNodes(txtm);
-                    DetectLink(media, out var twitter, out var youtube);
-
-                    dic.Add(no, new(10000 + no, Nijiasnji, name, youtube, twitter));
+                    set.Add(new(no, Nijiasnji, name, youtube, twitter));
                     await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "Nijisanji", $"Complete inspect liver {i + 1}/{livers.Count}[{no}] : {name}"));
+                        new(LogSeverity.Info, "Nijisanji", $"Complete inspect liver {no - 10000}/{count} : {name}"));
+                    no++;
                 }
-                set = new(dic.Values);
             }
             return set;
+
+            static string GetUrl(string name)
+            {
+                return $"https://www.nijisanji.jp/_next/data/AssLCig6Qu-ghaLHbaxgh/members/{name}.json" +
+                    "?filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
+            }
         }
-        private static async Task<HashSet<LiverDetail>> HololiveMembers(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set)
+        private static async Task<HashSet<LiverDetail>> HololiveMembers(WebClient wc, HtmlDocument _, HashSet<LiverDetail> set)
         {
-            return new();
+            var str = await wc.DownloadStringTaskAsync("https://www.hololive.tv/r/v1/sites/11822129/portfolio/categories/47579/products?per=1000");
+            var json = JObject.Parse(str);
+            var data = json["data"];
+            var count = data["paginationMeta"]["totalCount"].Value<int>();
+            if (count != set.Count)
+            {
+                set = new();
+                var no = 20001;
+                foreach (var liver in data["products"].AsEnumerable())
+                {
+                    var name = liver["name"].Value<string>();
+                    var youtube = liver["button"]["url"].Value<string>();
+
+                    var url = "https://www.hololive.tv" + liver["slugPath"].Value<string>();
+                    var html = await wc.DownloadStringTaskAsync(url);
+                    var doc = new HtmlDocument();
+                    doc.LoadHtml(html);
+
+                    string twitter = null;
+                    var txt = "/html/body/div[@id='s-page-container']/div/div/div[@class='page-wrapper']/div" +
+                        "/div[@class='s-section s-page-section s-block-section s-layout-center']/div/div" +
+                        "/div[@class='s-repeatable s-block s-component s-mh s-block-row-wrapper']/div/div/div/div/div/div/div/p/a";
+                    var col = doc.DocumentNode.SelectNodes(txt);
+                    foreach (var n in col)
+                    {
+                        var link = n.Attributes["href"].Value;
+                        if (link.StartsWith("https://twitter.com/"))
+                        {
+                            twitter = link;
+                            break;
+                        }
+                    }
+                    set.Add(new(no, Hololive, name, youtube, twitter));
+                    await LocalConsole.Log("MemberLoader",
+                        new(LogSeverity.Info, "Hololive", $"Complete inspect liver {no - 10000}/{count} : {name}"));
+                    no++;
+                }
+            }
+            return set;
         }
         private static async Task<HashSet<LiverDetail>> DotliveMembers(WebClient _, HtmlDocument doc, HashSet<LiverDetail> set)
         {
