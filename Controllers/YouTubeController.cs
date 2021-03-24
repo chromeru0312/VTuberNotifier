@@ -22,15 +22,14 @@ namespace VTuberNotifier.Controllers
             if (b)
             {
                 var s = value.ToString();
-                await LocalConsole.Log(this, new(LogSeverity.Info, "GET", $"Accept registration. [{s}]"));
+                await LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "GET", $"Accept registration. [{s}]"));
                 return Ok(s);
             }
             else
             {
                 var sr = new StreamReader(Request.Body);
                 var xml = await sr.ReadToEndAsync();
-                await LocalConsole.Log(this, new(LogSeverity.Info, "POST", "Recieved xml."));
-                await DataManager.Instance.StringSaveAsync($"xml/{DateTime.Now:yyyyMMddHHmmssff}", ".xml", xml);
+                await LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
                 if (!string.IsNullOrEmpty(xml)) await ReadFeed(xml);
                 return Ok();
             }
@@ -45,7 +44,10 @@ namespace VTuberNotifier.Controllers
             XNamespace ns = at.Value;
             var entry = doc.Root.Element(xmlns + "entry");
             var id = entry.Element(ns + "videoId").Value.Trim();
-            if(!YouTubeFeed.Instance.CheckNewLive(id, out var video)) return;
+
+            var type = YouTubeFeed.Instance.CheckNewLive(id, out var video);
+            await DataManager.Instance.StringSaveAsync($"xml/{id}-{DateTime.Now:MMddHHmmssff}[{type}]", ".xml", xml);
+            if (type != YouTubeFeed.EventType.Create) return;
 
             YouTubeEvent evt;
             if (video.Mode == YouTubeItem.YouTubeMode.Live) evt = new YouTubeNewLiveEvent(video);
