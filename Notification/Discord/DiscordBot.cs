@@ -94,7 +94,7 @@ namespace VTuberNotifier.Notification.Discord
         }
         private void SaveList()
         {
-            var data = AllChannels.Select((g, c) => $"{g} / {c}");
+            var data = AllChannels.Select(g => $"{g.Item1} / {g.Item2}");
             DataManager.Instance.DataSave("AllDiscordList", data, true);
         }
 
