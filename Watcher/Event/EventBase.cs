@@ -14,6 +14,7 @@ namespace VTuberNotifier.Watcher.Event
         public string EventTypeName { get; }
         public T Item { get; }
         public DateTime CreatedTime { get; }
+        public abstract string FormatContent { get; }
 
         protected private Dictionary<string, string> ContentFormat;
         protected private Dictionary<string, IEnumerable<object>> ContentFormatEnumerator;
@@ -30,7 +31,10 @@ namespace VTuberNotifier.Watcher.Event
             ContentFormatEnumeratorFunc = new(Item.ContentFormatEnumeratorFunc);
         }
 
-        public abstract string GetDiscordContent(LiverDetail liver);
+        public virtual string GetDiscordContent(LiverDetail liver)
+        {
+            return ConvertContent(FormatContent, liver);
+        }
         public string ConvertContent(string format, LiverDetail liver)
         {
             foreach (Match match in Regex.Matches(format, "{.+}"))
