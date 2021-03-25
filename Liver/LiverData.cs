@@ -44,7 +44,7 @@ namespace VTuberNotifier.Liver
         private static async Task SaveLivers()
         {
             foreach (var (group, set) in LiversSeparateGroup)
-                await DataManager.Instance.DataSaveAsync($"liver/{group.GroupId}", set);
+                await DataManager.Instance.DataSaveAsync($"liver/{group.GroupId}", set, true);
         }
 
         private static async Task<Dictionary<LiverGroupDetail, HashSet<LiverDetail>>> InspectLivers(List<LiverGroupDetail> list = null)
