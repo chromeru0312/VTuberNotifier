@@ -54,7 +54,7 @@ namespace VTuberNotifier.Notification
                 }
                 if (NotifyWebhookList.ContainsKey(liver))
                 {
-                    using var wc = new WebClient() { Encoding = Encoding.UTF8 };
+                    using var wc = SettingData.GetWebClient();
                     wc.Headers[HttpRequestHeader.ContentType] = "application/json;charset=UTF-8";
                     wc.Headers[HttpRequestHeader.Accept] = "application/json";
                     foreach (var wd in NotifyWebhookList[liver])
