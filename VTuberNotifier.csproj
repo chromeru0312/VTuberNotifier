@@ -9,7 +9,7 @@
     <Product>VInfoNotifier</Product>
     <PackageIcon>icon.jpg</PackageIcon>
     <RepositoryUrl>https://github.com/chromeru0312/VTuberNotifier</RepositoryUrl>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
