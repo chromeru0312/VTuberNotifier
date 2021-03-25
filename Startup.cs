@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
 using System.Net;
 using VTuberNotifier.Watcher;
 
@@ -44,14 +43,9 @@ namespace VTuberNotifier
             });
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostApplicationLifetime lifetime)
         {
             LocalConsole.CreateNewLogFile();
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-                LocalConsole.IsDebug = true;
-            }
 
             app.UseHttpsRedirection();
             app.UseRouting();
@@ -68,6 +62,11 @@ namespace VTuberNotifier
                 endpoints.MapControllers();
             });
 
+            lifetime.ApplicationStarted.Register(OnStarted);
+            lifetime.ApplicationStopped.Register(SettingData.Dispose);
+        }
+        private void OnStarted()
+        {
             DataManager.CreateInstance();
             WatcherTask.CreateInstance();
         }
