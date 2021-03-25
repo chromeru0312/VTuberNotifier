@@ -9,7 +9,7 @@
     <Product>VInfoNotifier</Product>
     <PackageIcon>icon.jpg</PackageIcon>
     <RepositoryUrl>https://github.com/chromeru0312/VTuberNotifier</RepositoryUrl>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,11 +30,11 @@
   <ItemGroup>
     <PackageReference Include="CoreTweet" Version="1.0.0.483" />
     <PackageReference Include="Discord.Net" Version="2.3.1" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.50.0.2238" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.11.31" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.51.0.2238" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.32" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.4" NoWarn="NU1605" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.4" NoWarn="NU1605" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.1.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.1.1" />
   </ItemGroup>
 
 </Project>
