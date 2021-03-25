@@ -9,6 +9,8 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Net;
+using System.Text;
 
 namespace VTuberNotifier
 {
@@ -51,6 +53,18 @@ namespace VTuberNotifier
             });
             _DiscordCmdService = new CommandService();
             _ServicePrivider = new ServiceCollection().BuildServiceProvider();
+        }
+
+        public static WebClient GetWebClient()
+        {
+            var wc = new WebClient() { Encoding = Encoding.UTF8 };
+            wc.Headers[HttpRequestHeader.UserAgent] = "VInfoNotifier (ASP.NET 5.0 / Ubuntu 20.04) [@chromeru0312]";
+            return wc;
+        }
+        internal static void Dispose()
+        {
+            YouTubeService.Dispose();
+            DiscordClient.Dispose();
         }
     }
 }
