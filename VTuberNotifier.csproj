@@ -9,22 +9,19 @@
     <Product>VInfoNotifier</Product>
     <PackageIcon>icon.jpg</PackageIcon>
     <RepositoryUrl>https://github.com/chromeru0312/VTuberNotifier</RepositoryUrl>
-    <Version>0.3.3</Version>
+    <Version>0.3.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="logs\**" />
     <Content Remove="logs\**" />
+    <Content Remove="Authentication.json" />
     <EmbeddedResource Remove="logs\**" />
     <None Remove="logs\**" />
     <None Include="icon.jpg">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Remove="Authentication.json" />
   </ItemGroup>
 
   <ItemGroup>
