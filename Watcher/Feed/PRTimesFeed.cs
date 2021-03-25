@@ -44,7 +44,7 @@ namespace VTuberNotifier.Watcher.Feed
             var id = group.ProducedCompany.Id;
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"Start task. [company:{group.GroupId}]"));
 
-            using var wc = new WebClient() { Encoding = Encoding.UTF8 };
+            using var wc = SettingData.GetWebClient();
             XDocument xml = XDocument.Load($"https://prtimes.jp/companyrdf.php?company_id={id}");
             XNamespace ns = xml.Root.Attribute("xmlns").Value;
             var articles = new List<XElement>(xml.Root.Elements(ns + "item"));
