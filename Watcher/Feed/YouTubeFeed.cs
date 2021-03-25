@@ -143,7 +143,7 @@ namespace VTuberNotifier.Watcher.Feed
                     {
                         list.Remove(ce.OldItem);
                         list.Insert(i - delc, ce.Item);
-                        if(ce.OldItem.LiveStartDate != ce.Item.LiveStartDate && ce.Item.LiveStartDate != DateTime.MinValue)
+                        if (ce.EventChangeType != YouTubeChangeInfoEvent.ChangeType.Other)
                             evts.Add(e);
                     }
                     else
@@ -285,7 +285,7 @@ namespace VTuberNotifier.Watcher.Feed
         }
         public bool Equals(YouTubeItem other)
         {
-            return VideoId == other.VideoId && VideoTitle == other.VideoTitle &&
+            return VideoId == other.VideoId && Livers == other.Livers && VideoTitle == other.VideoTitle &&
                 VideoDescription == other.VideoDescription && LiveStartDate == other.LiveStartDate;
         }
         public bool Equals(Video other)
