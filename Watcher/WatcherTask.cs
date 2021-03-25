@@ -21,12 +21,12 @@ namespace VTuberNotifier.Watcher
             TimerManager.CreateInstance();
 
             var tm = TimerManager.Instance;
-            PRTimesFeed.CreateInstance();
-            tm.AddAction(20 * 60, PRTimesTask);
             NijisanjiWatcher.CreateInstance();
             tm.AddAction(20 * 60, NijisanjiStoreTask);
             BoothWatcher.CreateInstance();
             tm.AddAction(20 * 60, BoothTask);
+            PRTimesFeed.CreateInstance();
+            tm.AddAction(20 * 60, PRTimesTask);
             TwitterWatcher.CreateInstance();
             //tm.AddAction(TimerManager.Interval, TwitterTask);
             YouTubeFeed.CreateInstance();
