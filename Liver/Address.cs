@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace VTuberNotifier.Liver
 {
@@ -13,8 +14,8 @@ namespace VTuberNotifier.Liver
         public string YouTubeId { get; }
         public string TwitterId { get; }
 
-        private const string YouTubeUrl = "https://www.youtube.com/channel/";
-        private const string TwitterUrl = "https://twitter.com/";
+        private const string YouTubeUrl = "https://(www\\.)??youtube\\.com/channel/";
+        private const string TwitterUrl = "https://twitter\\.com/";
 
         public Address(int id, string name, string youtube, string twitter)
         {
@@ -30,7 +31,8 @@ namespace VTuberNotifier.Liver
 
         private static string GetId(string content, string baseurl)
         {
-            content = content.Replace(baseurl, "");
+            var regex = new Regex(baseurl);
+            content = regex.Replace(content, "");
             var i = content.IndexOf('?');
             if (i != -1) content = content[..i];
             content = content.Split('/')[0];
