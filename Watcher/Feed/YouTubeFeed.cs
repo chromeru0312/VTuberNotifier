@@ -65,7 +65,7 @@ namespace VTuberNotifier.Watcher.Feed
                 var url = "https://pubsubhubbub.appspot.com/subscribe";
                 string data = $"hub.mode=subscribe&hub.verify=async&hub.callback={callback}&hub.topic={topic}";
 
-                using var wc = new WebClient { Encoding = enc };
+                using var wc = SettingData.GetWebClient();
                 wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
                 await wc.UploadStringTaskAsync(url, data);
 
