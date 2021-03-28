@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -24,7 +22,7 @@ namespace VTuberNotifier.Watcher.Store
             foreach (var group in LiverGroup.GroupList)
             {
                 if (!group.IsExistBooth) continue;
-                if (DataManager.Instance.TryDataLoad($"booth/{group.GroupId}", out List<BoothProduct> list))
+                if (DataManager.Instance.TryDataLoad($"store/booth/{group.GroupId}", out List<BoothProduct> list))
                     dic.Add(group, list);
                 else dic.Add(group, new List<BoothProduct>());
             }
@@ -43,7 +41,7 @@ namespace VTuberNotifier.Watcher.Store
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"Start task. [shop:{shop.GroupId}]"));
             var shop_name = shop.GroupId;
 
-            using var wc = new WebClient { Encoding = Encoding.UTF8 };
+            using var wc = SettingData.GetWebClient();
             string htmll = await wc.DownloadStringTaskAsync($"https://{shop_name}.booth.pm/");
             var doc = new HtmlDocument();
             doc.LoadHtml(htmll);
@@ -128,7 +126,7 @@ namespace VTuberNotifier.Watcher.Store
 
     [Serializable]
     [JsonConverter(typeof(BoothProductConverter))]
-    public class BoothProduct : ProductBase
+    public class BoothProduct : ProductBase, IProductTag
     {
         public new long Id { get; }
         public IReadOnlyList<string> Tags { get; }
@@ -137,7 +135,7 @@ namespace VTuberNotifier.Watcher.Store
         public BoothProduct(string title, LiverGroupDetail shop, long id, string category, List<string> tags,
             string explain, List<(string, int)> items, DateTime? start = null, DateTime? end = null)
             : base(id.ToString(), title, $"https://{shop.GroupId}.booth.pm/items/{id}", shop, category, items,
-                  new(LiverTag(shop, tags).Union(DetectLiver(shop, explain))), start, end)
+                  new(IProductTag.LiverTag(shop, tags).Union(DetectLiver(shop, explain))), start, end)
         {
             Id = id;
             Tags = tags;
@@ -150,19 +148,6 @@ namespace VTuberNotifier.Watcher.Store
             Tags = tags;
         }
 
-        private static List<LiverDetail> LiverTag(LiverGroupDetail shop, List<string> tags)
-        {
-            var list = LiverData.GetLiversList(shop);
-            var res = new List<LiverDetail>();
-            foreach (var t in tags)
-            {
-                var liver = list.FirstOrDefault(l => l.Name == t);
-                if (liver == null) continue;
-                res.Add(liver);
-            }
-            return res;
-        }
-
         public class BoothProductConverter : ProductConverter<BoothProduct>
         {
             public override BoothProduct Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
@@ -170,9 +155,7 @@ namespace VTuberNotifier.Watcher.Store
                 if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
 
                 var (id, title, url, shop, category, items, livers, start, end) = ReadBase(ref reader, type, options);
-                reader.Read();
-                reader.Read();
-                var tags = JsonSerializer.Deserialize<List<string>>(ref reader, options);
+                var tags = IProductTag.ReadTags(ref reader, type, options);
 
                 reader.Read();
                 if (reader.TokenType == JsonTokenType.EndObject)
@@ -185,8 +168,7 @@ namespace VTuberNotifier.Watcher.Store
                 writer.WriteStartObject();
 
                 WriteBase(writer, value, options);
-                writer.WritePropertyName("Tags");
-                JsonSerializer.Serialize(writer, value.Tags, options);
+                IProductTag.WriteTags(writer, value, options);
 
                 writer.WriteEndObject();
             }
