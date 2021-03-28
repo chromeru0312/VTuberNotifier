@@ -46,7 +46,7 @@ namespace VTuberNotifier.Controllers
             var id = entry.Element(ns + "videoId").Value.Trim();
 
             var type = YouTubeFeed.Instance.CheckNewLive(id, out var video);
-            await DataManager.Instance.StringSaveAsync($"xml/{id}-{DateTime.Now:MMddHHmmssff}[{type}]", ".xml", xml);
+            await DataManager.Instance.StringSaveAsync($"xml/{DateTime.Today:yyyyMMdd}/{id}[{type}]", ".xml", xml);
             if (type != YouTubeFeed.EventType.Create) return;
 
             YouTubeEvent evt;
