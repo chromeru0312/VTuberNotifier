@@ -16,7 +16,7 @@ namespace VTuberNotifier
         private Dictionary<int, HashSet<Func<Task>>> ActionList { get; }
         private Dictionary<DateTime, HashSet<Func<Task>>> AlarmList { get; }
 
-        public const int Interval = 10;
+        public const int Interval = 30;
         private readonly Timer Timer;
         private DateTime TimerReset;
         private bool disposed;
