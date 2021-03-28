@@ -2,7 +2,7 @@
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
 DiscordBot、WebHook(対応予定)、WebAPI(対応予定)で取得できます。
   
-※本サービスは現時点(2021/03/05)でベータ版の公開です。[v.0.3.3]  
+※本サービスは現時点(2021/03/05)でベータ版の公開です。[v.0.4.0]  
   機能の更新や追加を行う場合、バグの発生等稼働において支障が生じた場合は予告なくサービスを停止することがあります。    
   稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。
 
@@ -13,9 +13,10 @@ DiscordBot、WebHook(対応予定)、WebAPI(対応予定)で取得できます�
 ##### その他グループ・個人ライバー
 今後追加できるように変更する予定です。  
 ### サービス  
-[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) / [にじさんじオフィシャルストア](https://shop.nijisanji.jp/)  
-[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/) / [.LIVE公式ストア](https://4693.live/)  
-[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)  
+\[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) /    
+         [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)
+\[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/)  
+\[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)  
 ### 通知方法  
 [対応済] DiscordBot  
 [対応予定] Webhook / WebAPI  
@@ -45,7 +46,8 @@ booth...公式Boothの下記全ての通知(存在する場合)
  -booth_start...商品販売開始通知
 store...公式ストアの下記全ての通知(存在する場合)  
  -store_new...新商品通知  
- -store_start...商品販売開始通知
+ -store_start...商品販売開始通知  
+article...PR TIMESの新着通知
 ```
 ### DiscordBot
 Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=799182985600958494&permissions=133184&scope=bot) から追加できます    
