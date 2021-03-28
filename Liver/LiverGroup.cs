@@ -33,7 +33,8 @@ namespace VTuberNotifier.Liver
                 new("https://dotlive.jp/", "https://dotlive.jp/member/"),
                 DotliveMembers, "UCAZ_LA7f0sjuZ1Ni8L2uITw", "dotLIVEyoutuber",
                 new("https://seesaawiki.jp/siroyoutuber/", "d/", encode: true), true,
-                new("https://4693.live/", null, null, null));
+                new("https://4693.live/", typeof(DotliveNewProductEvent),
+                    typeof(DotliveStartSellEvent), DotliveWatcher.Instance.GetNewProduct));
         public static LiverGroupDetail VLive { get; }
             = new(40000, "vlive", "VLive", BitStar,
                 new("http://vlive.love/", "http://vlive.love/"), VliveMembers, null, "vlive_japan",
@@ -148,7 +149,7 @@ namespace VTuberNotifier.Liver
                     DetectLink(links, out var twitter, out var youtube);
 
                     var old = set.FirstOrDefault(l => l.Name == name);
-                    var id = old != null ? old.Id : 30000 + set.Select(l => l.Id - 30000).Concat(nset.Select(l => l.Id - 30000)).Append(0).Max() + 1;
+                    var id = old != null ? old.Id : 30001 + set.Select(l => l.Id - 30000).Concat(nset.Select(l => l.Id - 30000)).Append(0).Max();
                     nset.Add(new(id, Dotlive, name, youtube, twitter));
                     await LocalConsole.Log("MemberLoader",
                         new(LogSeverity.Info, "Dotlive", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
@@ -183,7 +184,7 @@ namespace VTuberNotifier.Liver
                     DetectLink(links, out var twitter, out var youtube);
 
                     var old = set.FirstOrDefault(l => l.Name == name);
-                    var id = old != null ? old.Id : 40000 + set.Select(l => l.Id - 40000).Concat(nset.Select(l => l.Id - 40000)).Append(0).Max() + 1;
+                    var id = old != null ? old.Id : 4000 + set.Select(l => l.Id - 40000).Concat(nset.Select(l => l.Id - 40000)).Append(0).Max();
                     nset.Add(new(id, VLive, name, youtube, twitter));
                     await LocalConsole.Log("MemberLoader",
                         new(LogSeverity.Info, "Vlive", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
@@ -208,7 +209,7 @@ namespace VTuberNotifier.Liver
                     DetectLink(links, out var twitter, out var youtube);
 
                     var old = set.FirstOrDefault(l => l.Name == name);
-                    var id = old != null ? old.Id : 50000 + set.Select(l => l.Id - 50000).Concat(nset.Select(l => l.Id - 50000)).Append(0).Max() + 1;
+                    var id = old != null ? old.Id : 50001 + set.Select(l => l.Id - 50000).Concat(nset.Select(l => l.Id - 50000)).Append(0).Max();
                     nset.Add(new(id, V774inc, name, youtube, twitter));
                     await LocalConsole.Log("MemberLoader",
                         new(LogSeverity.Info, "774inc", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
@@ -238,7 +239,7 @@ namespace VTuberNotifier.Liver
                     DetectLink(links, out var twitter, out var youtube);
 
                     var old = set.FirstOrDefault(l => l.Name == name);
-                    var id = old != null ? old.Id : 60000 + set.Select(l => l.Id - 60000).Concat(nset.Select(l => l.Id - 60000)).Append(0).Max() + 1;
+                    var id = old != null ? old.Id : 60001 + set.Select(l => l.Id - 60000).Concat(nset.Select(l => l.Id - 60000)).Append(0).Max();
                     nset.Add(new(id, VOMS, name, youtube, twitter));
                     await LocalConsole.Log("MemberLoader",
                         new(LogSeverity.Info, "Voms", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
