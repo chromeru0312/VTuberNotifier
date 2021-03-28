@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Notification.Discord;
@@ -224,12 +223,18 @@ namespace VTuberNotifier.Notification
         public static bool DetectType(LiverDetail liver, out Type type, string serv)
         {
             type = null;
-            if (serv == "youtube_new_live") type = typeof(YouTubeNewLiveEvent);
-            else if (serv == "youtube_new_video") type = typeof(YouTubeNewVideoEvent);
-            else if (serv == "youtube_new_premiere") type = typeof(YouTubeNewPremireEvent);
-            else if (serv == "youtube_change") type = typeof(YouTubeChangeInfoEvent);
-            else if (serv == "youtube_delete") type = typeof(YouTubeDeleteLiveEvent);
-            else if (serv == "youtube_start") type = typeof(YouTubeStartLiveEvent);
+            if (serv == "youtube_new_live")
+                type = typeof(YouTubeNewLiveEvent);
+            else if (serv == "youtube_new_video")
+                type = typeof(YouTubeNewVideoEvent);
+            else if (serv == "youtube_new_premiere")
+                type = typeof(YouTubeNewPremireEvent);
+            else if (serv == "youtube_change")
+                type = typeof(YouTubeChangeInfoEvent);
+            else if (serv == "youtube_delete")
+                type = typeof(YouTubeDeleteLiveEvent);
+            else if (serv == "youtube_start")
+                type = typeof(YouTubeStartLiveEvent);
             else if (serv == "booth_new" && liver.Group.IsExistBooth)
                 type = typeof(BoothNewProductEvent);
             else if (serv == "booth_start" && liver.Group.IsExistBooth)
@@ -238,6 +243,8 @@ namespace VTuberNotifier.Notification
                 type = liver.Group.StoreInfo.NewProductEventType;
             else if (serv == "store_start")
                 type = liver.Group.StoreInfo.StartSaleEventType;
+            else if (serv == "article")
+                type = typeof(PRTimesNewArticleEvent);
             else return false;
             return true;
         }
