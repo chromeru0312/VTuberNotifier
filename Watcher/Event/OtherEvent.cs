@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text.Json.Serialization;
-using VTuberNotifier.Liver;
 using VTuberNotifier.Watcher.Feed;
 
 namespace VTuberNotifier.Watcher.Event
@@ -12,11 +11,7 @@ namespace VTuberNotifier.Watcher.Event
         protected private PRTimesNewArticleEvent(PRTimesArticle value, DateTime dt)
              : base(nameof(PRTimesNewArticleEvent), value, dt) { }
 
-        public override string GetDiscordContent(LiverDetail liver)
-        {
-            var format = "新しいニュースリリースが配信されました\n{Title}({Date})\n参加ライバー:{Livers: / }\n{URL}";
-            return ConvertContent(format, liver);
-        }
+        public override string FormatContent => "新しいニュースリリースが配信されました\n{Title}({Date})\n参加ライバー : {Livers: / }\n{URL}";
 
         public class PRTimesNewArticleEventConverter : EventConverter
         {
