@@ -17,7 +17,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeNewLiveEventConverter))]
     public class YouTubeNewLiveEvent : YouTubeEvent
     {
-        public override string FormatContent => "配信待機所が作成されました\n{Title}\n参加ライバー:{Livers: / }\n{Date}\n{URL}";
+        public override string FormatContent => "配信待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
 
         public YouTubeNewLiveEvent(YouTubeItem value) : base(nameof(YouTubeNewLiveEvent), value) { }
         protected private YouTubeNewLiveEvent(YouTubeItem value, DateTime dt)
@@ -32,7 +32,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeNewPremireEventConverter))]
     public class YouTubeNewPremireEvent : YouTubeEvent
     {
-        public override string FormatContent => "プレミア公開待機所が作成されました\n{Title}\n参加ライバー:{Livers: / }\n{Date}\n{URL}";
+        public override string FormatContent => "プレミア公開待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
 
         public YouTubeNewPremireEvent(YouTubeItem value) : base(nameof(YouTubeNewPremireEvent), value) { }
         protected private YouTubeNewPremireEvent(YouTubeItem value, DateTime dt)
@@ -47,7 +47,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeNewVideoEventConverter))]
     public class YouTubeNewVideoEvent : YouTubeEvent
     {
-        public override string FormatContent => "新規動画が投稿されました\n{Title}\n参加ライバー:{Livers: / }\n{URL}";
+        public override string FormatContent => "新規動画が投稿されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
 
         public YouTubeNewVideoEvent(YouTubeItem value) : base(nameof(YouTubeNewVideoEvent), value) { }
         protected private YouTubeNewVideoEvent(YouTubeItem value, DateTime dt)
@@ -62,7 +62,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeStartLiveEventConverter))]
     public class YouTubeStartLiveEvent : YouTubeEvent
     {
-        public override string FormatContent => "配信が開始されました\n{Title}\n参加ライバー:{Livers: / }\n{URL}";
+        public override string FormatContent => "配信が開始されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
 
         public YouTubeStartLiveEvent(YouTubeItem value) : base(nameof(YouTubeStartLiveEvent), value) { }
         protected private YouTubeStartLiveEvent(YouTubeItem value, DateTime dt)
@@ -129,7 +129,7 @@ namespace VTuberNotifier.Watcher.Event
                 else if (Item.Livers.Except(OldItem.Livers).Contains(liver))
                     str = new YouTubeDeleteLiveEvent(Item).FormatContent;
                 else if (Item.Livers.Intersect(OldItem.Livers).Contains(liver))
-                    str = "参加ライバーが変更されました\n{Title}\n参加ライバー:{Livers: / }\n{URL}";
+                    str = "参加ライバーが変更されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
             }
             else if (EventChangeType == ChangeType.Date)
                 str = "配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n{URL}";
