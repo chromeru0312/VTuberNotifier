@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -28,15 +26,15 @@ namespace VTuberNotifier.Watcher.Store
         }
         private static void LoadList()
         {
-            var b = DataManager.Instance.TryDataLoad("NijisanjiStoreProduct", out List<NijisanjiProduct> list);
-            if (!b) list = new List<NijisanjiProduct>();
+            if (!DataManager.Instance.TryDataLoad("store/nijisanji", out List<NijisanjiProduct> list))
+                list = new();
             Instance.FoundProducts = list;
         }
 
         public async Task<List<ProductBase>> GetNewProduct()
         {
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "Start task."));
-            using var wc = new WebClient { Encoding = Encoding.UTF8 };
+            using var wc = SettingData.GetWebClient();
             var list = new List<ProductBase>();
             var end = false;
             var page = 0;
@@ -73,19 +71,20 @@ namespace VTuberNotifier.Watcher.Store
                     foreach (var p in ps)
                     {
                         var name = p.SelectSingleNode("./div[@class='variation-name']/span").InnerText.Trim();
-                        var str = p.SelectSingleNode("./div[@class='variation-price']/div").InnerText.Trim().Replace("&yen;", "");
-                        var price = int.Parse(str.Replace("\\", "").Trim(), NumberStyles.Currency, SettingData.Culture);
+                        var str = p.SelectSingleNode("./div[@class='variation-price']/div").InnerText.Replace("&yen;", "").Replace("\\", "").Trim();
+                        var price = int.Parse(str, NumberStyles.Currency, SettingData.Culture);
                         plist.Add((name, price));
                     }
 
                     DateTime? s = null, e = null;
                     var explain = doc1.DocumentNode.SelectSingleNode("//html/body/div/main/div/div/div[@id='detail-text']/div/div").InnerText.Trim();
-                    explain = explain.Replace('年', '/');
-                    explain = explain.Replace('月', '/');
-                    explain = explain.Replace('日', ' ');
                     explain = explain.Replace('〜', '～');
-                    var m1 = Regex.Match(explain, "\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
-                    var m2 = Regex.Match(explain, "\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
+
+                    var datestr = explain.Replace('年', '/');
+                    datestr = datestr.Replace('月', '/');
+                    datestr = datestr.Replace('日', ' ');
+                    var m1 = Regex.Match(datestr, "\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
+                    var m2 = Regex.Match(datestr, "\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d～\\d{4}/\\d\\d?/\\d\\d?.*\\d\\d:\\d\\d");
                     if (m1.Success)
                     {
                         var dates = m1.Value.Split('～');
@@ -125,7 +124,7 @@ namespace VTuberNotifier.Watcher.Store
 
         public async Task<bool> CheckOnSale(NijisanjiProduct product)
         {
-            using WebClient wc = new WebClient { Encoding = Encoding.UTF8 };
+            using var wc = SettingData.GetWebClient();
             var htmll = await wc.DownloadStringTaskAsync(product.Url);
             var doc = new HtmlDocument();
             doc.LoadHtml(htmll);
