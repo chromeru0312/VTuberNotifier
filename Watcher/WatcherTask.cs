@@ -19,10 +19,12 @@ namespace VTuberNotifier.Watcher
         private WatcherTask()
         {
             TimerManager.CreateInstance();
-
             var tm = TimerManager.Instance;
+
             NijisanjiWatcher.CreateInstance();
             tm.AddAction(20 * 60, NijisanjiStoreTask);
+            DotliveWatcher.CreateInstance();
+            tm.AddAction(20 * 60, DotliveStoreTask);
             BoothWatcher.CreateInstance();
             tm.AddAction(20 * 60, BoothTask);
             PRTimesFeed.CreateInstance();
@@ -133,6 +135,20 @@ namespace VTuberNotifier.Watcher
                 {
                     var dt = DateTime.Today.AddHours(DateTime.Now.Hour + 1);
                     TimerManager.Instance.AddAlarm(dt, new(() => InnerTask(dt, product)));
+                }
+            }
+        }
+
+        public async Task DotliveStoreTask()
+        {
+            var res = await DotliveWatcher.Instance.GetNewProduct();
+            if (res != null && res.Count != 0)
+            {
+                foreach (DotliveProduct product in res)
+                {
+                    if (!product.IsOnSale)
+                        TimerManager.Instance.AddEventAlarm(product.StartDate, new DotliveStartSellEvent(product));
+                    await NotifyEvent.Notify(new DotliveNewProductEvent(product));
                 }
             }
         }
