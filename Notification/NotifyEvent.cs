@@ -19,11 +19,9 @@ namespace VTuberNotifier.Notification
         {
             if (NotifyDiscordList != null) return;
             static Dictionary<LiverDetail, IReadOnlyList<T>> empty_func<T>()
-                => new Dictionary<LiverDetail, IReadOnlyList<T>>(
-                    LiverData.GetAllLiversList().Select(l => new KeyValuePair<LiverDetail, IReadOnlyList<T>>(l, new List<T>())));
+                => new(LiverData.GetAllLiversList().Select(l => new KeyValuePair<LiverDetail, IReadOnlyList<T>>(l, new List<T>())));
             static Dictionary<LiverDetail, IReadOnlyList<T>> data_func<T>(IEnumerable<KeyValuePair<int, List<T>>> dic)
-                => new Dictionary<LiverDetail, IReadOnlyList<T>>(
-                    dic.Select(p => new KeyValuePair<LiverDetail, IReadOnlyList<T>>(LiverData.GetAllLiversList().First(l => l.Id == p.Key), p.Value)));
+                => new ( dic.Select(p => new KeyValuePair<LiverDetail, IReadOnlyList<T>>(LiverData.GetAllLiversList().First(l => l.Id == p.Key), p.Value)));
 
             if (DataManager.Instance.TryDataLoad("NotifyDiscordList", out IEnumerable<KeyValuePair<int, List<DiscordChannel>>> ddic))
                 NotifyDiscordList = data_func(ddic);
@@ -70,7 +68,8 @@ namespace VTuberNotifier.Notification
                     }
                 }
             }
-            DataManager.Instance.DataSave($"event/notified-{DateTime.Now:yyyyMMddHHmmssffff}", value);
+            var now = DateTime.Now;
+            DataManager.Instance.DataSave($"event/{now:yyyyMMdd}/{value.GetType().Name}_{now:HHmmssff}({value.Item.Id})", value);
         }
 
         public static bool AddDiscordList(LiverDetail liver, DiscordChannel channel)
