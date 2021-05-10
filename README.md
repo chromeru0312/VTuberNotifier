@@ -1,21 +1,20 @@
 # VTuber情報通知サービス: VTuberNotifier
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
-DiscordBot、WebHook(対応予定)、WebAPI(対応予定)で取得できます。
+DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できます。   
+現在のバージョン : v.1.0.0 (2021/05/11)
   
-※本サービスは現時点(2021/03/05)でベータ版の公開です。[v.0.4.0]  
-  機能の更新や追加を行う場合、バグの発生等稼働において支障が生じた場合は予告なくサービスを停止することがあります。    
-  稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。    
-  2021/05現在、YouTubeの割り当て不足に伴いサービスを停止しています。増加申請が承認され次第再開・正式版の公開を行います。    
+バグの発生等稼働において重大な支障が生じた場合は予告なくサービスを一時的に停止することがあります。    
+稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。    
 
 ## 対応状況
 ### ライバー
 ##### 企業・グループ(公式ホームページがあるもの)
 [対応済] にじさんじ / ホロライブ / .LIVE / ぶいらいぶ / 774inc. / VOMS  
 ##### その他グループ・個人ライバー
-今後追加できるように変更する予定です。  
+近日中に追加フォームを公開いたします。  
 ### サービス  
 \[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) /    
-         [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)
+         [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)    
 \[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/)  
 \[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)  
 ### 通知方法  
@@ -94,4 +93,7 @@ Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=7
 ```
 
 ### Webhook
-準備中...
+近日中に登録フォームを公開・登録方法の追記を行います。
+
+### WebAPI
+現在調整中です。
