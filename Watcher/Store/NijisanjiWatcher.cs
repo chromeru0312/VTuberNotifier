@@ -22,9 +22,8 @@ namespace VTuberNotifier.Watcher.Store
         {
             if (Instance != null) return;
             Instance = new NijisanjiWatcher();
-            LoadList();
         }
-        private static void LoadList()
+        internal static void LoadList()
         {
             if (!DataManager.Instance.TryDataLoad("store/nijisanji", out List<NijisanjiProduct> list))
                 list = new();
@@ -116,7 +115,7 @@ namespace VTuberNotifier.Watcher.Store
             if (list.Count > 0)
             {
                 FoundProducts = new List<NijisanjiProduct>(FoundProducts.Concat(list.Select(p => (NijisanjiProduct)p)));
-                await DataManager.Instance.DataSaveAsync("NijisanjiStoreProduct", FoundProducts, true);
+                await DataManager.Instance.DataSaveAsync("store/nijisanji", FoundProducts, true);
             }
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "End task."));
             return list;

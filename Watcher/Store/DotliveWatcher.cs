@@ -21,9 +21,8 @@ namespace VTuberNotifier.Watcher.Store
         {
             if (Instance != null) return;
             Instance = new DotliveWatcher();
-            LoadList();
         }
-        private static void LoadList()
+        internal static void LoadList()
         {
             if (!DataManager.Instance.TryDataLoad("store/dotlive", out List<DotliveProduct> list))
                 list = new();
@@ -96,7 +95,7 @@ namespace VTuberNotifier.Watcher.Store
             if (list.Count > 0)
             {
                 FoundProducts = new List<DotliveProduct>(FoundProducts.Concat(list.Select(p => (DotliveProduct)p)));
-                await DataManager.Instance.DataSaveAsync("DotliveStoreProduct", FoundProducts, true);
+                await DataManager.Instance.DataSaveAsync("store/dotlive", FoundProducts, true);
             }
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "End task."));
             return list;
