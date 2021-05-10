@@ -81,6 +81,7 @@ namespace VTuberNotifier.Watcher.Feed
     public class PRTimesArticle : IEquatable<PRTimesArticle>, INotificationContent
     {
         public uint Id { get; }
+        string INotificationContent.Id => Id.ToString();
         public LiverGroupDetail Group { get; }
         public string Title { get; }
         public string Url { get; }
