@@ -17,6 +17,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeNewLiveEventConverter))]
     public class YouTubeNewLiveEvent : YouTubeEvent
     {
+        [JsonIgnore]
         public override string FormatContent => "配信待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
 
         public YouTubeNewLiveEvent(YouTubeItem value) : base(nameof(YouTubeNewLiveEvent), value) { }
@@ -32,6 +33,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeNewPremireEventConverter))]
     public class YouTubeNewPremireEvent : YouTubeEvent
     {
+        [JsonIgnore]
         public override string FormatContent => "プレミア公開待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
 
         public YouTubeNewPremireEvent(YouTubeItem value) : base(nameof(YouTubeNewPremireEvent), value) { }
@@ -47,6 +49,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeNewVideoEventConverter))]
     public class YouTubeNewVideoEvent : YouTubeEvent
     {
+        [JsonIgnore]
         public override string FormatContent => "新規動画が投稿されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
 
         public YouTubeNewVideoEvent(YouTubeItem value) : base(nameof(YouTubeNewVideoEvent), value) { }
@@ -62,6 +65,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeStartLiveEventConverter))]
     public class YouTubeStartLiveEvent : YouTubeEvent
     {
+        [JsonIgnore]
         public override string FormatContent => "配信が開始されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
 
         public YouTubeStartLiveEvent(YouTubeItem value) : base(nameof(YouTubeStartLiveEvent), value) { }
@@ -79,8 +83,9 @@ namespace VTuberNotifier.Watcher.Event
     {
         public enum ChangeType
         {
-            Date, Livers, Other
+            Date, Livers, Both, Other
         }
+        [JsonIgnore]
         public override string FormatContent => "配信情報が変更されました\n{Title}\n{URL}";
 
         public ChangeType EventChangeType { get; }
@@ -93,7 +98,8 @@ namespace VTuberNotifier.Watcher.Event
             OldItem = old;
             if (Item.LiveStartDate != OldItem.LiveStartDate && Item.LiveStartDate != DateTime.MinValue)
             {
-                EventChangeType = ChangeType.Date;
+                if (Item.Livers != OldItem.Livers) EventChangeType = ChangeType.Both;
+                else EventChangeType = ChangeType.Date;
                 string format;
                 if (old.LiveStartDate.Year != latest.LiveStartDate.Year) format = "yyyy/MM/dd HH:mm";
                 else format = "MM/dd HH:mm";
@@ -112,7 +118,7 @@ namespace VTuberNotifier.Watcher.Event
         public override string GetDiscordContent(LiverDetail liver)
         {
             var str = FormatContent;
-            if (EventChangeType == ChangeType.Livers)
+            if (EventChangeType == ChangeType.Livers || EventChangeType == ChangeType.Both)
             {
                 if (Item.Livers.Except(OldItem.Livers).Contains(liver))
                 {
@@ -129,7 +135,11 @@ namespace VTuberNotifier.Watcher.Event
                 else if (Item.Livers.Except(OldItem.Livers).Contains(liver))
                     str = new YouTubeDeleteLiveEvent(Item).FormatContent;
                 else if (Item.Livers.Intersect(OldItem.Livers).Contains(liver))
-                    str = "参加ライバーが変更されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
+                {
+                    if (EventChangeType == ChangeType.Both)
+                        str = "参加ライバー・配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n参加ライバー : {Livers: / }\n{URL}";
+                    else str = "参加ライバーが変更されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
+                }
             }
             else if (EventChangeType == ChangeType.Date)
                 str = "配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n{URL}";
@@ -167,6 +177,7 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(YouTubeDeleteLiveEventConverter))]
     public class YouTubeDeleteLiveEvent : YouTubeEvent
     {
+        [JsonIgnore]
         public override string FormatContent => "配信待機所が削除されました\n{Title}\n{URL}";
 
         public YouTubeDeleteLiveEvent(YouTubeItem value) : base(nameof(YouTubeDeleteLiveEvent), value) { }
