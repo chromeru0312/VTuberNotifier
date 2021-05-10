@@ -49,6 +49,7 @@ namespace VTuberNotifier.Watcher.Store
             var text = "//html/body/div[@id='shop_default']/div/div[@class='layout-wrap']/main/div/section" +
                 "/div[@class='container new-arrivals']/ul/shop-item-component/li";
             var nodes = doc.DocumentNode.SelectNodes(text);
+            if (nodes == null) return list;
             for (int i = 0; i < nodes.Count; i++)
             {
                 var id = long.Parse(nodes[i].Attributes["data-product-id"].Value.Trim(), SettingData.Culture);
@@ -117,7 +118,7 @@ namespace VTuberNotifier.Watcher.Store
             {
                 FoundProducts = new Dictionary<LiverGroupDetail, IReadOnlyList<BoothProduct>>(FoundProducts)
                 { [shop] = new List<BoothProduct>(FoundProducts[shop].Concat(list)) };
-                await DataManager.Instance.DataSaveAsync($"booth/{shop.GroupId}", FoundProducts[shop], true);
+                await DataManager.Instance.DataSaveAsync($"store/booth/{shop.GroupId}", FoundProducts[shop], true);
             }
             await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"End task. [shop:{shop.GroupId}]"));
             return list;
