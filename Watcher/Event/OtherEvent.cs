@@ -11,6 +11,7 @@ namespace VTuberNotifier.Watcher.Event
         protected private PRTimesNewArticleEvent(PRTimesArticle value, DateTime dt)
              : base(nameof(PRTimesNewArticleEvent), value, dt) { }
 
+        [JsonIgnore]
         public override string FormatContent => "新しいニュースリリースが配信されました\n{Title}({Date})\n参加ライバー : {Livers: / }\n{URL}";
 
         public class PRTimesNewArticleEventConverter : EventConverter

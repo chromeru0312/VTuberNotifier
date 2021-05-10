@@ -10,6 +10,7 @@ namespace VTuberNotifier.Watcher.Event
         protected private NewProductEvent(string evt_name, T value, DateTime dt)
             : base(evt_name, value, dt) { }
 
+        [JsonIgnore]
         public override string FormatContent
             => "新しい商品ページが公開されました\n{Title}\n{Date}\n{URL}\n参加ライバー : {Livers: / }\n{ItemsNP:\\n}";
     }
@@ -19,6 +20,7 @@ namespace VTuberNotifier.Watcher.Event
         protected private StartSellEvent(string evt_name, T value, DateTime dt)
             : base(evt_name, value, dt) { }
 
+        [JsonIgnore]
         public override string FormatContent
             => "商品が販売開始されました\n{Title}\n{Date}\n{URL}\n参加ライバー : {Livers: / }\n{ItemsNP:\\n}";
     }

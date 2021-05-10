@@ -14,6 +14,7 @@ namespace VTuberNotifier.Watcher.Event
         public string EventTypeName { get; }
         public T Item { get; }
         public DateTime CreatedTime { get; }
+        [JsonIgnore]
         public abstract string FormatContent { get; }
 
         protected private Dictionary<string, string> ContentFormat;
