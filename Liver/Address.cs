@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace VTuberNotifier.Liver
 {
     [Serializable]
-    [JsonConverter(typeof(AddressConverter))]
-    public class Address : IEquatable<Address>
+    public abstract class Address : IEquatable<Address>
     {
         public int Id { get; }
         public string Name { get; }
@@ -55,43 +52,6 @@ namespace VTuberNotifier.Liver
         public override string ToString()
         {
             return Name;
-        }
-
-        public class AddressConverter : JsonConverter<Address>
-        {
-            public override Address Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
-            {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
-
-                reader.Read();
-                reader.Read();
-                var id = reader.GetInt32();
-                reader.Read();
-                reader.Read();
-                var name = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var ytid = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var twid = reader.GetString();
-
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(id, name, ytid, twid);
-                throw new JsonException();
-            }
-
-            public override void Write(Utf8JsonWriter writer, Address value, JsonSerializerOptions options)
-            {
-                writer.WriteStartObject();
-
-                writer.WriteNumber("Id", value.Id);
-                writer.WriteString("Name", value.Name);
-                writer.WriteString("YouTubeId", value.YouTubeId);
-                writer.WriteString("TwitterId", value.TwitterId);
-
-                writer.WriteEndObject();
-            }
         }
     }
 }
