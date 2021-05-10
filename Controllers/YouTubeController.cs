@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using VTuberNotifier.Notification;
-using VTuberNotifier.Watcher.Event;
 using VTuberNotifier.Watcher.Feed;
 
 namespace VTuberNotifier.Controllers
@@ -27,10 +26,13 @@ namespace VTuberNotifier.Controllers
             }
             else
             {
-                var sr = new StreamReader(Request.Body);
-                var xml = await sr.ReadToEndAsync();
-                await LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
-                if (!string.IsNullOrEmpty(xml)) await ReadFeed(xml);
+                if (TimerManager.Instance != null && TimerManager.Instance.TimerCount > 0)
+                {
+                    var sr = new StreamReader(Request.Body);
+                    var xml = await sr.ReadToEndAsync();
+                    await LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
+                    if (!string.IsNullOrEmpty(xml)) await ReadFeed(xml);
+                }
                 return Ok();
             }
         }
@@ -45,15 +47,10 @@ namespace VTuberNotifier.Controllers
             var entry = doc.Root.Element(xmlns + "entry");
             var id = entry.Element(ns + "videoId").Value.Trim();
 
-            var type = YouTubeFeed.Instance.CheckNewLive(id, out var video);
+            var evt = YouTubeFeed.Instance.CheckNewLive(id, out var video);
+            var type = evt == null ? "None" : evt.GetType().Name[7..^5];
             await DataManager.Instance.StringSaveAsync($"xml/{DateTime.Today:yyyyMMdd}/{id}[{type}]", ".xml", xml);
-            if (type != YouTubeFeed.EventType.Create) return;
-
-            YouTubeEvent evt;
-            if (video.Mode == YouTubeItem.YouTubeMode.Live) evt = new YouTubeNewLiveEvent(video);
-            else if (video.Mode == YouTubeItem.YouTubeMode.Premire) evt = new YouTubeNewPremireEvent(video);
-            else evt = new YouTubeNewVideoEvent(video);
-            await NotifyEvent.Notify(evt);
+            if (evt != null) await NotifyEvent.Notify(evt);
         }
     }
 }
