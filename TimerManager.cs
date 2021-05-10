@@ -12,7 +12,7 @@ namespace VTuberNotifier
     public class TimerManager : IDisposable
     {
         public static TimerManager Instance { get; private set; } = null;
-        public int TimerCount { get; private set; }
+        public int TimerCount { get; private set; } = 0;
         private Dictionary<int, HashSet<Func<Task>>> ActionList { get; }
         private Dictionary<DateTime, HashSet<Func<Task>>> AlarmList { get; }
 
@@ -74,11 +74,6 @@ namespace VTuberNotifier
             RemoveAlarm(dt, new(() => NotifyEvent.Notify(evt)));
         }
 
-        public void Stop()
-        {
-            Timer.Stop();
-        }
-
         private async void TimerTask(object sender, ElapsedEventArgs e)
         {
             var now = e.SignalTime;
@@ -97,7 +92,7 @@ namespace VTuberNotifier
             }
             if (TimerReset < now)
             {
-                TimerCount = 0;
+                TimerCount = 1;
                 TimerReset = DateTime.Today.AddDays(1);
                 await WatcherTask.Instance.OneDayTask();
                 await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "Task", "Reset TimerCount."));
@@ -107,9 +102,9 @@ namespace VTuberNotifier
 
         protected virtual void Dispose(bool disposing)
         {
-            Stop();
             if (!disposed)
             {
+                Timer.Stop();
                 if (disposing)
                 {
                     Timer.Dispose();
