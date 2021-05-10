@@ -73,7 +73,8 @@ namespace VTuberNotifier.Liver
             if (Livers == null)
             {
                 Livers = new();
-                foreach (var pair in LiversSeparateGroup) Livers.UnionWith(pair.Value);
+                foreach (var pair in LiversSeparateGroup) 
+                    if(pair.Value != null) Livers.UnionWith(pair.Value);
             }
             return Livers;
         }
@@ -103,17 +104,65 @@ namespace VTuberNotifier.Liver
         {
             var search = liver.Split('=');
 
-            if (search.Length == 1) detail = LiverData.GetLiverFromNameMatch(search[0]);
+            if (search.Length == 1) detail = GetLiverFromNameMatch(search[0]);
             else
             {
                 if (search.Length > 2) for (int i = 2; i < search.Length; i++) search[1] += '=' + search[i];
 
-                if (search[0] == "name") detail = LiverData.GetLiverFromNameMatch(search[1]);
-                else if (search[0] == "youtube") detail = LiverData.GetLiverFromYouTubeId(search[1]);
-                else if (search[0] == "twitter") detail = LiverData.GetLiverFromTwitterId(search[1]);
+                if (search[0] == "name") detail = GetLiverFromNameMatch(search[1]);
+                else if (search[0] == "youtube") detail = GetLiverFromYouTubeId(search[1]);
+                else if (search[0] == "twitter") detail = GetLiverFromTwitterId(search[1]);
                 else detail = null;
             }
             return detail != null;
+        }
+
+        internal static async Task<int> AddLiver(string group_str, string name, string youtube, string twitter)
+        {
+            var set = GetAllLiversList();
+            var group = LiverGroup.GroupList.FirstOrDefault(g => g.GroupId == group_str);
+            if (group == null) return 404;
+            if (group.IsAutoLoad) return 403;
+            var id = set.Count == 0 ? group.Id + 1 : set.Max(c => c.Id) + 1;
+            var liver = new LiverDetail(id, group, name, youtube, twitter);
+            var b = set.Add(liver);
+            if (b)
+            {
+                Livers = set;
+                LiversSeparateGroup[liver.Group].Add(liver);
+                await SaveLivers();
+                return 201;
+            }
+            return 400;
+        }
+        internal static async Task<int> UpdateLiver(int id, string name = null, string youtube = null, string twitter = null)
+        {
+            var set = GetAllLiversList();
+            var liver = set.FirstOrDefault(c => c.Id == id);
+            if (liver == null) return 404;
+            if (liver.Group.IsAutoLoad) return 403;
+            set.Remove(liver);
+            var updated = new LiverDetail(id, liver.Group, name ?? liver.Name, youtube ?? liver.YouTubeId, twitter ?? liver.TwitterId);
+            var b = set.Add(updated);
+            if (b)
+            {
+                Livers = set;
+                LiversSeparateGroup[liver.Group].Remove(liver);
+                LiversSeparateGroup[liver.Group].Add(updated);
+                await SaveLivers();
+                return 200;
+            }
+            return 400;
+        }
+        internal static async Task<int> DeleteLiver(int id)
+        {
+            var liver = GetAllLiversList().FirstOrDefault(c => c.Id == id);
+            if (liver == null) return 404;
+            if (liver.Group.IsAutoLoad) return 403;
+            Livers.Remove(liver);
+            LiversSeparateGroup[liver.Group].Remove(liver);
+            await SaveLivers();
+            return 200;
         }
     }
 
