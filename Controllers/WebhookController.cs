@@ -12,10 +12,9 @@ namespace VTuberNotifier.Controllers
     public class WebhookController : ControllerBase
     {
         [HttpPost]
-        public async Task<ActionResult<WebhookResponse>> AddWebhook(WebhookRequest req)
+        public async Task<ActionResult<ApiResponse>> AddWebhook(WebhookRequest req)
         {
             var res = GetRequestData(req, out var liver, out var dest);
-            Response.StatusCode = res.Code;
             if (res.IsSuccess)
             {
                 using var ping = new Ping();
@@ -35,11 +34,12 @@ namespace VTuberNotifier.Controllers
                 res = new(400, "Unable to connect to the specified URL.");
             }
             await LocalConsole.Log("WebhookCtl", new LogMessage(LogSeverity.Warning, "Add", "Failed to add webhook."));
+            Response.StatusCode = res.Code;
             return res;
         }
 
         [HttpPut]
-        public async Task<ActionResult<WebhookResponse>> UpdateWebhook(WebhookRequest req)
+        public async Task<ActionResult<ApiResponse>> UpdateWebhook(WebhookRequest req)
         {
             var res = GetRequestData(req, out var liver, out var dest);
             if (res.IsSuccess) 
@@ -53,7 +53,7 @@ namespace VTuberNotifier.Controllers
         }
 
         [HttpDelete]
-        public async Task<ActionResult<WebhookResponse>> RemoveWebhook(WebhookRequest req)
+        public async Task<ActionResult<ApiResponse>> RemoveWebhook(WebhookRequest req)
         {
             var res = GetRequestData(req, out var liver, out var dest);
             if (res.IsSuccess)
@@ -66,7 +66,7 @@ namespace VTuberNotifier.Controllers
             return res;
         }
 
-        private static WebhookResponse GetRequestData(WebhookRequest req, out LiverDetail liver, out WebhookDestination dest)
+        private static ApiResponse GetRequestData(WebhookRequest req, out LiverDetail liver, out WebhookDestination dest)
         {
             dest = new WebhookDestination(req.Url);
             if (!LiverData.DetectLiver(req.Liver, out liver)) return new(404, "The specified river cannot be found.");
@@ -75,7 +75,7 @@ namespace VTuberNotifier.Controllers
                 if (!NotifyEvent.DetectType(liver, out var type, content.Service)) return new(404, "This service is not supported/found.");
                 dest.AddContent(type, content.Only, content.Content);
             }
-            return new WebhookResponse(200, "OK.");
+            return new ApiResponse(200, "OK.");
         }
     }
 }
