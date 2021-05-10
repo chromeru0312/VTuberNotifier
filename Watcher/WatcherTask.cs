@@ -22,8 +22,10 @@ namespace VTuberNotifier.Watcher
             var tm = TimerManager.Instance;
 
             NijisanjiWatcher.CreateInstance();
-            tm.AddAction(20 * 60, NijisanjiStoreTask);
             DotliveWatcher.CreateInstance();
+            NijisanjiWatcher.LoadList();
+            DotliveWatcher.LoadList();
+            tm.AddAction(20 * 60, NijisanjiStoreTask);
             tm.AddAction(20 * 60, DotliveStoreTask);
             BoothWatcher.CreateInstance();
             tm.AddAction(20 * 60, BoothTask);
@@ -32,7 +34,7 @@ namespace VTuberNotifier.Watcher
             TwitterWatcher.CreateInstance();
             //tm.AddAction(TimerManager.Interval, TwitterTask);
             YouTubeFeed.CreateInstance();
-            tm.AddAction(TimerManager.Interval, YouTubeChangeTask);
+            tm.AddAction(60, YouTubeChangeTask);
 
             DiscordBot.CreateInstance();
             Task.Run(DiscordBot.Instance.BotStart);
