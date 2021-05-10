@@ -33,7 +33,7 @@ namespace VTuberNotifier
         public static IServiceProvider ServicePrivider { get { if (_ServicePrivider == null) LoadSettingData(); return _ServicePrivider; } }
         private static IServiceProvider _ServicePrivider = null;
 
-        public static CultureInfo Culture { get; } = new CultureInfo("ja-JP");
+        public static CultureInfo Culture { get; } = new ("ja-JP");
 
         private static void LoadSettingData()
         {
@@ -42,16 +42,16 @@ namespace VTuberNotifier
             using var reader = new StreamReader(stream);
             var json = JObject.Parse(reader.ReadToEnd());
 
-            _YouTubeService = new YouTubeService(new BaseClientService.Initializer() { ApiKey = json["youtube_apiKey"].Value<string>() });
+            _YouTubeService = new (new() { ApiKey = json["youtube_apiKey"].Value<string>() });
             _NotificationCallback = json["youtube_callback_url"].Value<string>();
             _TwitterToken = Tokens.Create(json["twitter_apiKey"].Value<string>(), json["twitter_apiSecret"].Value<string>(),
                 json["twitter_accessKey"].Value<string>(), json["twitter_accessSecret"].Value<string>());
             _DiscordToken = json["discord_token"].Value<string>();
-            _DiscordClient = new DiscordSocketClient(new DiscordSocketConfig
+            _DiscordClient = new (new ()
             {
                 LogLevel = LocalConsole.IsDebug ? LogSeverity.Debug : LogSeverity.Info
             });
-            _DiscordCmdService = new CommandService();
+            _DiscordCmdService = new ();
             _ServicePrivider = new ServiceCollection().BuildServiceProvider();
         }
 
