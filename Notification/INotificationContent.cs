@@ -6,6 +6,7 @@ namespace VTuberNotifier.Notification
 {
     public interface INotificationContent
     {
+        public string Id { get; }
         public IReadOnlyList<LiverDetail> Livers { get; }
         public IReadOnlyDictionary<string, string> ContentFormat { get; }
         public IReadOnlyDictionary<string, IEnumerable<object>> ContentFormatEnumerator { get; }
