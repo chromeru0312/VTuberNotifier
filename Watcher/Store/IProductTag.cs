@@ -37,7 +37,7 @@ namespace VTuberNotifier.Watcher.Store
         public static void WriteTags(Utf8JsonWriter writer, IProductTag value, JsonSerializerOptions options)
         {
             writer.WritePropertyName("Tags");
-            JsonSerializer.Serialize(writer, value, options);
+            JsonSerializer.Serialize(writer, value.Tags, options);
         }
     }
 }
