@@ -16,13 +16,13 @@ namespace VTuberNotifier.Liver
 {
     public static class LiverGroup
     {
-        public static LiverGroupDetail Nijiasnji { get; }
+        public static LiverGroupDetail Nijiasnji { get; private set; }
             = new(10000, "nijisanji", "にじさんじ", Ichikara,
                 new("https://nijisanji.ichikara.co.jp/", "https://nijisanji.ichikara.co.jp/member/", false),
                 NijisanjiMembers, "UCX7YkU9nEeaoZbkVLVajcMg", "nijisanji_app",
                 new("https://wikiwiki.jp/nijisanji/"), true,
                 new("https://shop.nijisanji.jp/", typeof(NijisanjiNewProductEvent),
-                    typeof(NijisanjiStartSellEvent),NijisanjiWatcher.Instance.GetNewProduct));
+                    typeof(NijisanjiStartSellEvent), NijisanjiWatcher.Instance.GetNewProduct));
         public static LiverGroupDetail Hololive { get; }
             = new(20000, "hololive", "ホロライブ", Cover,
                 new("https://www.hololive.tv", "https://www.hololive.tv/member", false),
@@ -40,14 +40,14 @@ namespace VTuberNotifier.Liver
                 new("http://vlive.love/", "http://vlive.love/"), VliveMembers, null, "vlive_japan",
                 new("https://wikiwiki.jp/vlive/"), true);
         public static LiverGroupDetail V774inc { get; }
-            = new(50000, "774inc", "774inc", null,
-                new("https://www.774.ai/", "https://www.774.ai/member"), V774incMembers,
+            = new(50000, "774inc", "774inc",
+                hp: new("https://www.774.ai/", "https://www.774.ai/member"), action: V774incMembers,
                 wiki: new("https://wikiwiki.jp/774inc/"));
         public static LiverGroupDetail VOMS { get; }
-            = new(60000, "voms", "VOMS", null,
-                new("https://voms.net/", "https://voms.net/monsters/"), VomsMembers,
+            = new(60000, "voms", "VOMS",
+                hp: new("https://voms.net/", "https://voms.net/monsters/"), action: VomsMembers,
                 wiki: new("https://wikiwiki.jp/voms_project/"));
-        public static LiverGroupDetail None { get; } = new(990000, "none", "None", null, new(), null);
+        public static LiverGroupDetail None { get; } = new(990000, "none", "None");
         public static IReadOnlyList<LiverGroupDetail> GroupList { get; }
             = new List<LiverGroupDetail> { Nijiasnji, Hololive, Dotlive, VLive, V774inc, VOMS, None };
 
@@ -82,7 +82,7 @@ namespace VTuberNotifier.Liver
 
             static string GetUrl(string name)
             {
-                return $"https://www.nijisanji.jp/_next/data/AssLCig6Qu-ghaLHbaxgh/members/{name}.json" +
+                return $"https://www.nijisanji.jp/_next/data/Dm7evcV-Vmk_A2Y1E0_wM/members/{name}.json" +
                     "?filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
             }
         }
@@ -109,9 +109,7 @@ namespace VTuberNotifier.Liver
                     doc.LoadHtml(html);
 
                     string twitter = null;
-                    var txt = "//html/body/div[@id='s-page-container']/div/div/div/div[@class='page-wrapper']/div" +
-                        "/div[@class='s-section s-page-section s-block-section s-layout-center']/div/div" +
-                        "/div[@class='s-repeatable s-block s-component s-mh s-block-row-wrapper']/div/div/div/div/div/div/div/p/a";
+                    var txt = "//html/body/div[@id='s-page-container']/div/div/div/div/div/div/div/div/div/div/div/div/div/div/div/div/p/a";
                     var col = doc.DocumentNode.SelectNodes(txt);
                     foreach (var n in col)
                     {
@@ -195,8 +193,8 @@ namespace VTuberNotifier.Liver
         }
         private static async Task<HashSet<LiverDetail>> V774incMembers(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set)
         {
-            var txt = "/html/body/div/div/div[@id='site-root']/div/main/div/div/div/div[@class='_2S9ms']/div/div/div/section" +
-                "/div[@class='_3BQmz']/div[@class='_1HpZ_']/div[@data-testid='inline-content']/div/div/div/div";
+            var txt = "/html/body/div/div/div[@id='site-root']/div/main/div/div/div/div/div/div/div/section" +
+                "/div[@data-testid='columns']/div/div[@data-testid='inline-content']/div/div/div/div";
             var livers = doc.DocumentNode.SelectNodes(txt);
             if (livers.Count != set.Count)
             {
@@ -204,8 +202,8 @@ namespace VTuberNotifier.Liver
                 for (int i = 0; i < livers.Count; i++)
                 {
                     var liver = livers[i];
-                    var name = liver.SelectSingleNode("./div[@class='_1Z_nJ']/h1").InnerText.Trim();
-                    var links = liver.SelectNodes("./div[@class='_2qI_L']/ul/li/a");
+                    var name = liver.SelectSingleNode("./div/h1").InnerText.Trim();
+                    var links = liver.SelectNodes("./div/ul/li/a");
                     DetectLink(links, out var twitter, out var youtube);
 
                     var old = set.FirstOrDefault(l => l.Name == name);
@@ -315,6 +313,7 @@ namespace VTuberNotifier.Liver
         public string GroupId { get; }
         public VWebPage HomePage { get; }
         public CompanyDetail ProducedCompany { get; }
+        public bool IsAutoLoad { get; }
         internal MemberLoad MemberLoadAction { get; }
         public VWebPage UnofficialWiki { get; }
         public bool IsExistBooth { get; }
@@ -323,17 +322,18 @@ namespace VTuberNotifier.Liver
 
         internal delegate Task<HashSet<LiverDetail>> MemberLoad(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set);
 
-        internal LiverGroupDetail(int id, string groupid, string name, CompanyDetail corp, VWebPage hp, MemberLoad action,
+        internal LiverGroupDetail(int id, string groupid, string name, CompanyDetail corp = null, VWebPage? hp = null, MemberLoad action = null,
             string youtube = null, string twitter = null, VWebPage? wiki = null, bool booth = false, VStoreInfo? store = null)
             : base(id, name, youtube, twitter)
         {
             GroupId = groupid;
-            HomePage = hp;
+            HomePage = hp == null ? new() : (VWebPage)hp;
             ProducedCompany = corp;
-            MemberLoadAction = action;
-            UnofficialWiki = wiki == null ? new(null) : (VWebPage)wiki;
+            IsAutoLoad = action != null;
+            MemberLoadAction = action ?? CompareMembers;
+            UnofficialWiki = wiki == null ? new() : (VWebPage)wiki;
             IsExistBooth = booth;
-            StoreInfo = store == null ? new(null, null, null, null) : (VStoreInfo)store;
+            StoreInfo = store == null ? new() : (VStoreInfo)store;
         }
 
         public async Task<HashSet<LiverDetail>> LoadMembers(HashSet<LiverDetail> set)
@@ -351,7 +351,7 @@ namespace VTuberNotifier.Liver
                 }
 
                 if (set == null) set = new();
-                if (MemberLoadAction != null) s = await MemberLoadAction.Invoke(wc, doc, set);
+                s = await MemberLoadAction.Invoke(wc, doc, set);
                 foreach (var liver in s)
                 {
                     if (liver.YouTubeId == null) continue;
@@ -367,6 +367,16 @@ namespace VTuberNotifier.Liver
                 await LocalConsole.Log("MemberLoader", new(LogSeverity.Error, GroupId, $"An error has occured.", e));
             }
             return s;
+        }
+
+        private async Task<HashSet<LiverDetail>> CompareMembers(WebClient _, HtmlDocument __, HashSet<LiverDetail> set)
+        {
+            if (DataManager.Instance.TryDataLoad($"liver/{GroupId}", out HashSet<LiverDetail> livers) && livers.Count != set.Count)
+            {
+                await LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, "Reloaded livers list."));
+                return livers;
+            }
+            return set;
         }
     }
 
