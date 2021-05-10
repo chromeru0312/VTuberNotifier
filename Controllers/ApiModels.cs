@@ -17,15 +17,25 @@ namespace VTuberNotifier.Controllers
             public string Content { get; set; }
         }
     }
-    public class WebhookResponse
+
+    public class AddressRequest
+    {
+        public int? Id { get; set; }
+        public string Name { get; set; }
+        public string GroupId { get; set; }
+        public string YouTubeId { get; set; }
+        public string TwitterId { get; set; }
+    }
+
+    public class ApiResponse
     {
         public int Code { get; }
         public string Message { get; }
         [JsonIgnore]
         public bool IsSuccess { get { return Code < 400; } }
 
-        public WebhookResponse(HttpStatusCode code, string msg) : this((int)code, msg) { }
-        public WebhookResponse(int code, string msg)
+        public ApiResponse(HttpStatusCode code, string msg) : this((int)code, msg) { }
+        public ApiResponse(int code, string msg)
         {
             Code = code;
             Message = msg;
