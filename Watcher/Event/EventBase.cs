@@ -38,7 +38,7 @@ namespace VTuberNotifier.Watcher.Event
         }
         public string ConvertContent(string format, LiverDetail liver)
         {
-            foreach (Match match in Regex.Matches(format, "{.+}"))
+            foreach (Match match in Regex.Matches(format,"{.+?}"))
             {
                 var tag = match.Value[1..^1].Split(':');
                 if (tag.Length > 2) for (int i = 2; i < tag.Length; i++) tag[1] += ':' + tag[i];
