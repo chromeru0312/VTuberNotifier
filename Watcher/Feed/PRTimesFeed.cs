@@ -119,8 +119,18 @@ namespace VTuberNotifier.Watcher.Feed
         private static List<LiverDetail> DetectLiver(LiverGroupDetail group, string content)
         {
             List<LiverDetail> livers = new(LiverData.GetLiversList(group)), res = new();
+            List<char> chars = new() { ',', '/', ' ', '\n', '、', '・' },
+                scs = new(chars) { '(', '（', '「' }, ecs = new(chars) { ')', '）', '」' };
             foreach (var liver in livers)
-                if (content.Contains(liver.Name)) res.Add(liver);
+            {
+                var name = liver.Name;
+                if (content.Contains(name))
+                {
+                    var pos = content.IndexOf(name);
+                    if (ecs.Contains(content.ToLower()[pos + name.Length]) || scs.Contains(content.ToLower()[pos - 1]))
+                        res.Add(liver);
+                }
+            }
             return res;
         }
 
@@ -149,8 +159,8 @@ namespace VTuberNotifier.Watcher.Feed
                 var id = reader.GetUInt32();
                 reader.Read();
                 reader.Read();
-                var gid = JsonSerializer.Deserialize<Address>(ref reader, options).Id;
-                var group = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
+                var gid = reader.GetString();
+                var group = LiverGroup.GroupList.FirstOrDefault(g => g.GroupId == gid);
                 reader.Read();
                 reader.Read();
                 var title = reader.GetString();
@@ -174,9 +184,7 @@ namespace VTuberNotifier.Watcher.Feed
                 writer.WriteStartObject();
 
                 writer.WriteNumber("Id", value.Id);
-                writer.WritePropertyName("Group");
-                //var a = ;
-                JsonSerializer.Serialize(writer, (Address)value.Group, options);
+                writer.WriteString("Group", value.Group.GroupId);
                 writer.WriteString("Title", value.Title);
                 writer.WriteString("Url", value.Url);
                 writer.WriteString("Update", value.Update.ToString("G"));
