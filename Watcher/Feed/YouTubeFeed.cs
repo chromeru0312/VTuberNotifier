@@ -131,8 +131,16 @@ namespace VTuberNotifier.Watcher.Feed
                 }
                 else if (!liver && item.Livers.Count != old.Livers.Count && item.Livers.Count != 0)
                 {
-                    if (item.Mode == YouTubeItem.YouTubeMode.Live) evt = new YouTubeNewLiveEvent(item);
-                    else if (item.Mode == YouTubeItem.YouTubeMode.Premire) evt = new YouTubeNewPremireEvent(item);
+                    if (item.Mode == YouTubeItem.YouTubeMode.Live)
+                    {
+                        evt = new YouTubeNewLiveEvent(item);
+                        add = true;
+                    }
+                    else if (item.Mode == YouTubeItem.YouTubeMode.Premire)
+                    {
+                        evt = new YouTubeNewPremireEvent(item);
+                        add = true;
+                    }
                     else evt = new YouTubeNewVideoEvent(item);
                 }
             }
@@ -197,20 +205,21 @@ namespace VTuberNotifier.Watcher.Feed
                     else
                     {
                         list.Remove(e.Item);
-                        evts.Add(e);
+                        if (e is not YouTubeAlradyLivedEvent) evts.Add(e);
                     }
                     delc++;
                 }
             }
-            if(evts.Count != 0)
+            if(delc != 0)
             {
-                FutureLiveList = list;
+                FutureLiveList = new List<YouTubeItem>(list.Distinct());
                 DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", list, true).Wait();
             }
             return evts;
 
             static async Task<YouTubeEvent> CheckFutureLive(YouTubeItem item)
             {
+                if (item.Mode == YouTubeItem.YouTubeMode.Video) return new YouTubeAlradyLivedEvent(item);
                 var req = SettingData.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
                 req.Id = item.Id;
                 req.MaxResults = 1;
@@ -218,8 +227,12 @@ namespace VTuberNotifier.Watcher.Feed
                 var res = await req.ExecuteAsync();
                 if (res.Items.Count == 0) return new YouTubeDeleteLiveEvent(item);
                 var video = res.Items[0];
-                if (video.Snippet.LiveBroadcastContent == "live") return new YouTubeStartLiveEvent(item);
-                else if (!item.Equals(video)) return new YouTubeChangeInfoEvent(item, new(video));
+                if (video.Snippet.LiveBroadcastContent == "live")
+                    return new YouTubeStartLiveEvent(item);
+                else if (video.LiveStreamingDetails.ActualStartTime != null && video.Snippet.LiveBroadcastContent == "none")
+                    return new YouTubeAlradyLivedEvent(item);
+                else if (!item.Equals(video) || item.UpdatedDate < DateTime.Now.AddDays(-7))
+                    return new YouTubeChangeInfoEvent(item, new(video));
                 else return null;
             }
         }
@@ -272,18 +285,14 @@ namespace VTuberNotifier.Watcher.Feed
             PublishedDate = video.Snippet.PublishedAt != null ? (DateTime)video.Snippet.PublishedAt : DateTime.Now;
             UpdatedDate = update ?? DateTime.Now;
 
-            if (video.ContentDetails != null)
+            if (video.LiveStreamingDetails != null)
             {
-                if (video.LiveStreamingDetails != null)
-                {
-                    if(video.ContentDetails.Duration == "P0D") Mode = YouTubeMode.Live;
-                    else Mode = YouTubeMode.Premire;
-                    LiveChatId = video.LiveStreamingDetails.ActiveLiveChatId;
-                    LiveStartDate = video.LiveStreamingDetails.ScheduledStartTime != null ?
-                        (DateTime)video.LiveStreamingDetails.ScheduledStartTime : PublishedDate;
-                }
-                else Mode = YouTubeMode.Video;
+                if (video.ContentDetails?.Duration != "P0D") Mode = YouTubeMode.Premire;
+                else Mode = YouTubeMode.Live;
+                LiveChatId = video.LiveStreamingDetails.ActiveLiveChatId;
+                LiveStartDate = video.LiveStreamingDetails.ScheduledStartTime ?? PublishedDate;
             }
+            else Mode = YouTubeMode.Video;
 
             var chid = video.Snippet.ChannelId;
             Address channel = LiverData.GetLiverFromYouTubeId(chid);

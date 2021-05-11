@@ -190,4 +190,11 @@ namespace VTuberNotifier.Watcher.Event
                 => new YouTubeDeleteLiveEvent(value, dt);
         }
     }
+    public class YouTubeAlradyLivedEvent : YouTubeEvent
+    {
+        [JsonIgnore]
+        public override string FormatContent => null;
+
+        public YouTubeAlradyLivedEvent(YouTubeItem value) : base(nameof(YouTubeDeleteLiveEvent), value) { }
+    }
 }
