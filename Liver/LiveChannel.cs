@@ -17,7 +17,6 @@ namespace VTuberNotifier.Liver
             if (DataManager.Instance.TryDataLoad("youtube/LiveChannelList", out HashSet<LiveChannelDetail> livers))
                 LiverChannels = livers;
             else LiverChannels = new();
-            await DataManager.Instance.DataSaveAsync("youtube/LiveChannelList", LiverChannels, true);
         }
 
         internal static async Task<int> AddLiveChannel(string name, string youtube, string twitter)
