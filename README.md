@@ -13,7 +13,10 @@ DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できま�
 ##### その他グループ・個人ライバー    
 下記Googleフォームから情報を入力して申請してください。    
 申請人数にもよりますが現時点で200人ほどは新規追加可能です。    
-https://forms.gle/zezp1K2oBJ316u396    
+##### その他のチャンネル    
+VTuberではないものの、VTuberとの配信を行うチャンネル(TRPGのGMのチャンネル等)も申請可能です。    
+「その他グループ・個人ライバー」のGoogleフォームから情報を入力して申請してください。    
+申請数にもよりますが現時点で50チャンネルほどは追加可能です。   
 ### サービス  
 \[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) / [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)    
 \[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/)  
