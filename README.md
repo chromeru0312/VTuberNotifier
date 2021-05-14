@@ -1,7 +1,7 @@
 # VTuber情報通知サービス: VTuberNotifier
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
 DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できます。   
-現在のバージョン : v.1.0.0 (2021/05/11)
+現在のバージョン : v.1.0.1 (2021/05/15)
   
 バグの発生等稼働において重大な支障が生じた場合は予告なくサービスを一時的に停止することがあります。    
 稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。    
@@ -10,11 +10,12 @@ DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できま�
 ### ライバー
 ##### 企業・グループ(公式ホームページがあるもの)
 [対応済] にじさんじ / ホロライブ / .LIVE / ぶいらいぶ / 774inc. / VOMS  
-##### その他グループ・個人ライバー
-近日中に追加フォームを公開いたします。  
+##### その他グループ・個人ライバー    
+下記Googleフォームから情報を入力して申請してください。    
+申請人数にもよりますが現時点で200人ほどは新規追加可能です。    
+https://forms.gle/zezp1K2oBJ316u396    
 ### サービス  
-\[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) /    
-         [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)    
+\[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) / [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)    
 \[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/)  
 \[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)  
 ### 通知方法  
