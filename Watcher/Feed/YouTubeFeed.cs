@@ -173,12 +173,12 @@ namespace VTuberNotifier.Watcher.Feed
                 }
             }
             FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [ch] = list };
-            DataManager.Instance.DataSaveAsync($"youtube/{ch.YouTubeId}", list, true).Wait();
+            DataManager.Instance.DataSave($"youtube/{ch.YouTubeId}", list, true);
 
             if (add)
             {
                 FutureLiveList = new List<YouTubeItem>(FutureLiveList) { item };
-                DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", FutureLiveList, true).Wait();
+                DataManager.Instance.DataSave("youtube/FutureLiveList", FutureLiveList, true);
             }
             return evt;
         }
@@ -213,7 +213,7 @@ namespace VTuberNotifier.Watcher.Feed
             if(delc != 0)
             {
                 FutureLiveList = new List<YouTubeItem>(list.Distinct());
-                DataManager.Instance.DataSaveAsync("youtube/FutureLiveList", list, true).Wait();
+                DataManager.Instance.DataSave("youtube/FutureLiveList", list, true);
             }
             return evts;
 
@@ -229,7 +229,7 @@ namespace VTuberNotifier.Watcher.Feed
                 var video = res.Items[0];
                 if (video.Snippet.LiveBroadcastContent == "live")
                     return new YouTubeStartLiveEvent(item);
-                else if (video.LiveStreamingDetails.ActualStartTime != null && video.Snippet.LiveBroadcastContent == "none")
+                else if (video.LiveStreamingDetails?.ActualStartTime != null && video.Snippet.LiveBroadcastContent == "none")
                     return new YouTubeAlradyLivedEvent(item);
                 else if (!item.Equals(video) || item.UpdatedDate < DateTime.Now.AddDays(-7))
                     return new YouTubeChangeInfoEvent(item, new(video));
@@ -245,7 +245,6 @@ namespace VTuberNotifier.Watcher.Feed
         public enum YouTubeMode { Video, Premire, Live }
 
         public YouTubeMode Mode { get; }
-
         public string Id { get; }
         public string Title { get; }
         public string Description { get; }
