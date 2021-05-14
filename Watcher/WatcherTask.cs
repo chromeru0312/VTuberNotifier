@@ -46,7 +46,7 @@ namespace VTuberNotifier.Watcher
 
         public async Task YouTubeNotificationTask()
         {
-            var list = new List<Address>(LiverData.GetAllLiversList()).Concat(LiverGroup.GroupList);
+            var list = new List<Address>(LiverData.GetAllLiversList()).Concat(LiverGroup.GroupList).Concat(LiveChannel.GetLiveChannelList());
             foreach (var address in list)
             {
                 var id = address.YouTubeId;
@@ -65,6 +65,7 @@ namespace VTuberNotifier.Watcher
                             await Task.Delay(1000);
                         }
                         else await LocalConsole.Log(this, new(LogSeverity.Error, "Notification", $"Failed registration: {id}"));
+                        i++;
                     }
                 }
             }
