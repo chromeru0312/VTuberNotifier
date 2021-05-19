@@ -17,8 +17,8 @@ namespace VTuberNotifier.Liver
     public static class LiverGroup
     {
         public static LiverGroupDetail Nijiasnji { get; private set; }
-            = new(10000, "nijisanji", "にじさんじ", Ichikara,
-                new("https://nijisanji.ichikara.co.jp/", "https://nijisanji.ichikara.co.jp/member/", false),
+            = new(10000, "nijisanji", "にじさんじ", Anycolor,
+                new("https://www.nijisanji.jp/", "https://www.nijisanji.jp/members", false),
                 NijisanjiMembers, "UCX7YkU9nEeaoZbkVLVajcMg", "nijisanji_app",
                 new("https://wikiwiki.jp/nijisanji/"), true,
                 new("https://shop.nijisanji.jp/", typeof(NijisanjiNewProductEvent),
@@ -82,7 +82,7 @@ namespace VTuberNotifier.Liver
 
             static string GetUrl(string name)
             {
-                return $"https://www.nijisanji.jp/_next/data/Dm7evcV-Vmk_A2Y1E0_wM/members/{name}.json" +
+                return $"https://www.nijisanji.jp/_next/data/r4X4Eb75yATlGP4oRu4r4/members/{name}.json" +
                     "?filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
             }
         }
