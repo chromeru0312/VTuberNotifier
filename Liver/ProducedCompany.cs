@@ -4,6 +4,8 @@
     {
         public static CompanyDetail Ichikara { get; }
             = new(30865, "いちから株式会社", "https://www.ichikara.co.jp/", "Ichikara_Inc");
+        public static CompanyDetail Anycolor { get; }
+            = new(30865, "株式会社ANYCOLOR", "https://www.anycolor.co.jp/", "ANYCOLOR_Inc");
         public static CompanyDetail Cover { get; }
             = new(30268, "カバー株式会社", "https://cover-corp.com/", "cover_corp");
         public static CompanyDetail AppLand { get; }
