@@ -1,5 +1,6 @@
 ﻿using Discord;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,6 +11,19 @@ namespace VTuberNotifier
     {
         public static bool IsDebug { get; set; } = false;
         private static ConsoleStream ConsoleWriter { get; set; }
+        private static ConsoleColor? DefaultColor { get; set; }
+        private static IReadOnlyDictionary<LogSeverity, ConsoleColor> SeverityColor { get; }
+            = new Dictionary<LogSeverity, ConsoleColor>()
+            {
+                { LogSeverity.Critical, ConsoleColor.Red },
+                { LogSeverity.Error, ConsoleColor.Red },
+                { LogSeverity.Warning, ConsoleColor.Yellow },
+                { LogSeverity.Info, ConsoleColor.DarkGreen },
+                { LogSeverity.Verbose, ConsoleColor.DarkCyan },
+                { LogSeverity.Debug, ConsoleColor.DarkGray },
+            };
+        //private static Task WriteingTask { get; set; }
+        //private static Queue<Task> WriteingTasks { get; } = new();
 
         internal static void CreateNewLogFile()
         {
@@ -21,34 +35,46 @@ namespace VTuberNotifier
         }
         public static Task Log<T>(T _, LogMessage msg) => Log(typeof(T).Name, msg);
 
-        public static Task Log(string place, LogMessage msg)
+        public static async Task Log(string place, LogMessage msg)
         {
-            string text = $"{DateTime.Now:HH:mm:ss.fff} [{place}({msg.Source})] ";
-            text = text.Replace($"{place}({place})", place);
-            var output = true;
-            switch (msg.Severity)
+            await LogInner(place, msg);
+        }
+        private static Task LogInner(string place, LogMessage msg)
+        {
+            if (DefaultColor == null) DefaultColor = Console.ForegroundColor;
+            var text = $"{DateTime.Now:HH:mm:ss.fff} {place}";
+            if (!string.IsNullOrEmpty(msg.Source) || place != msg.Source)
+                text += $"({msg.Source})";
+            var e = msg.Exception;
+            var normal = (ConsoleColor)DefaultColor;
+            var message = normal;
+
+            if (msg.Severity == LogSeverity.Critical)
+                message = ConsoleColor.Red;
+            else if (msg.Severity == LogSeverity.Debug)
             {
-                case LogSeverity.Critical or LogSeverity.Error:
-                    text += $"{msg.Severity}: {msg.Message}";
-                    var e = msg.Exception;
-                    if (e != null)
-                    {
-                        text += $"{e.GetType()} {e.Message}";
-                        ConsoleWriter.FileStream.WriteLine(e.StackTrace);
-                    }
-                    break;
-                case LogSeverity.Warning:
-                    text += $"{msg.Severity}: {msg.Message}";
-                    break;
-                case LogSeverity.Debug:
-                    if (!IsDebug) output = false;
-                    goto default;
-                default:
-                    text += msg.Message;
-                    break;
+                if (IsDebug)
+                    message = ConsoleColor.DarkGray;
+                else
+                {
+                    ConsoleWriter.FileStream.WriteLine($"{text}\n             [debug] {msg.Message}");
+                    return Task.CompletedTask;
+                }
             }
-            if (output) Console.WriteLine(text);
-            else ConsoleWriter.FileStream.WriteLine(text);
+
+            Console.WriteLine(text);
+            Console.ForegroundColor = SeverityColor[msg.Severity];
+            Console.Write($"             [{msg.Severity.ToString().ToLower()}] ");
+            Console.ForegroundColor = message;
+            Console.WriteLine(msg.Message);
+            if (e != null && SeverityColor[msg.Severity] == ConsoleColor.Red)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine($"{e.GetType()} - {e.Message}");
+                ConsoleWriter.FileStream.WriteLine(e.StackTrace);
+            }
+
+            Console.ForegroundColor = normal;
             return Task.CompletedTask;
         }
 
@@ -75,12 +101,14 @@ namespace VTuberNotifier
                 base.Write(value);
                 FileStream.Write(value);
             }
+            public override void Write(char[] value)
+            {
+                base.Write(value);
+                FileStream.Write(value);
+            }
             public override void Write(string value)
             {
-                if (value != null)
-                {
-                    Write(value.ToCharArray());
-                }
+                if (value != null) Write(value.ToCharArray());
             }
             public override void WriteLine(string value)
             {
