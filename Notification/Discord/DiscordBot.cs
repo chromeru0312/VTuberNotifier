@@ -61,17 +61,16 @@ namespace VTuberNotifier.Notification.Discord
 
             if (msg.HasCharPrefix('>', ref arg))
             {
-                await Log(new LogMessage(LogSeverity.Info, "Command", $"Command[{msg}] process is started."));
                 var context = new CommandContext(DiscordClient, msg);
                 var result = await DiscordCmdService.ExecuteAsync(context, arg, ServicePrivider);
                 if (result.IsSuccess)
                 {
-                    await Log(new LogMessage(LogSeverity.Info, "Command", $"Command[{msg}] is Success."));
+                    await Log(new LogMessage(LogSeverity.Info, "Command", $"Command({msg}) is Success."));
                 }
                 else
                 {
-                    await Log(new LogMessage(LogSeverity.Info, "Command",
-                        $"Command[{msg}] is Error.\n{result.Error.Value}: {result.ErrorReason}"));
+                    await Log(new LogMessage(LogSeverity.Warning, "Command",
+                        $"Command({msg}) is Error.\n{result.Error.Value}: {result.ErrorReason}"));
                 }
             }
         }
