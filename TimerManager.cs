@@ -1,6 +1,7 @@
 ﻿using Discord;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Timers;
 using VTuberNotifier.Notification;
@@ -16,7 +17,7 @@ namespace VTuberNotifier
         private Dictionary<int, HashSet<Func<Task>>> ActionList { get; }
         private Dictionary<DateTime, HashSet<Func<Task>>> AlarmList { get; }
 
-        public const int Interval = 30;
+        public const int Interval = 10;
         private readonly Timer Timer;
         private DateTime TimerReset;
         private bool disposed;
@@ -30,9 +31,20 @@ namespace VTuberNotifier
             Task.Delay(Interval * 1000 - sec - now.Millisecond).Wait();
             Timer.Start();
             TimerReset = DateTime.Today.AddDays(1);
-            ActionList = new();
+            ActionList = new() { { 600, new() { Report } } };
             AlarmList = new();
             LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "Timer", "Timer Start!"));
+
+            async static Task Report()
+            {
+                try
+                {
+                    using var wc = SettingData.GetWebClient();
+                    wc.Headers.Add("Content-Type", "text/plain");
+                    await wc.UploadStringTaskAsync("http://localhost:55555/app", "PUT", "{ \"AppName\": \"VInfoNotifier\" }");
+                }
+                catch (Exception) { }
+            }
         }
         public static void CreateInstance()
         {
@@ -78,26 +90,42 @@ namespace VTuberNotifier
         {
             var now = e.SignalTime;
             TimerCount++;
-            var list = new List<Task>();
-            foreach(var (sec, set) in ActionList)
+            try
             {
-                if (TimerCount % sec == 0)
-                    foreach (var func in set) list.Add(func.Invoke());
+                var list = new List<Task>();
+                foreach (var (sec, set) in ActionList)
+                {
+                    if (TimerCount % sec == 0)
+                        foreach (var func in set) list.Add(func.Invoke());
+                }
+                var dt = now.AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
+                if (AlarmList.TryGetValue(dt, out var funcs))
+                {
+                    foreach (var func in funcs) await func.Invoke();
+                    AlarmList.Remove(dt);
+                }
+                if (TimerReset < now)
+                {
+                    TimerCount = 1;
+                    TimerReset = DateTime.Today.AddDays(1);
+                    await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "Task", "Reset TimerCount."));
+                    await WatcherTask.Instance.OneDayTask();
+                    await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "Task", "Finished daily task."));
+                }
+                foreach (var task in list) await task;
             }
-            var dt = now.AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
-            if (AlarmList.TryGetValue(dt, out var funcs))
+            catch (Exception ex)
             {
-                foreach (var func in funcs) await func.Invoke();
-                AlarmList.Remove(dt);
+                try
+                {
+                    using var wc = SettingData.GetWebClient();
+                    wc.Headers.Add("Content-Type", "application/json");
+                    var error = new ErrorRequest { AppName = "VInfoNotifier", ErrorLog = ex.ToString(), IsExit = false };
+                    await wc.UploadStringTaskAsync("http://localhost:55555/app", JsonSerializer.Serialize(error));
+                }
+                catch (Exception) { }
+                await LocalConsole.Log(this, new LogMessage(LogSeverity.Error, "Task", "An unknown error has occured.", ex));
             }
-            if (TimerReset < now)
-            {
-                TimerCount = 1;
-                TimerReset = DateTime.Today.AddDays(1);
-                await WatcherTask.Instance.OneDayTask();
-                await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "Task", "Reset TimerCount."));
-            }
-            foreach (var task in list) await task;
         }
 
         protected virtual void Dispose(bool disposing)
