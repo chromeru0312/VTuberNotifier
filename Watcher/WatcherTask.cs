@@ -32,7 +32,7 @@ namespace VTuberNotifier.Watcher
             PRTimesFeed.CreateInstance();
             tm.AddAction(20 * 60, PRTimesTask);
             TwitterWatcher.CreateInstance();
-            //tm.AddAction(TimerManager.Interval, TwitterTask);
+            //tm.AddAction(60, TwitterTask);
             YouTubeFeed.CreateInstance();
             tm.AddAction(60, YouTubeChangeTask);
 
@@ -69,6 +69,7 @@ namespace VTuberNotifier.Watcher
                     }
                 }
             }
+            await LocalConsole.Log(this, new(LogSeverity.Info, "Notification", $"Finish all registration task."));
         }
 
 
