@@ -47,10 +47,7 @@ namespace VTuberNotifier
             _TwitterToken = Tokens.Create(json["twitter_apiKey"].Value<string>(), json["twitter_apiSecret"].Value<string>(),
                 json["twitter_accessKey"].Value<string>(), json["twitter_accessSecret"].Value<string>());
             _DiscordToken = json["discord_token"].Value<string>();
-            _DiscordClient = new (new ()
-            {
-                LogLevel = LocalConsole.IsDebug ? LogSeverity.Debug : LogSeverity.Info
-            });
+            _DiscordClient = new (new () { LogLevel = LogSeverity.Debug });
             _DiscordCmdService = new ();
             _ServicePrivider = new ServiceCollection().BuildServiceProvider();
         }
