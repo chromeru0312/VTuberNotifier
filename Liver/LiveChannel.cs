@@ -11,12 +11,13 @@ namespace VTuberNotifier.Liver
     {
         private static HashSet<LiveChannelDetail> LiverChannels = null;
 
-        private async static Task LoadLiveChannels()
+        private static Task LoadLiveChannels()
         {
             LiverChannels = null;
             if (DataManager.Instance.TryDataLoad("youtube/LiveChannelList", out HashSet<LiveChannelDetail> livers))
                 LiverChannels = livers;
             else LiverChannels = new();
+            return Task.CompletedTask;
         }
 
         internal static async Task<int> AddLiveChannel(string name, string youtube, string twitter)
