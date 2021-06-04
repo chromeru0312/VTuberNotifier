@@ -96,10 +96,10 @@ namespace VTuberNotifier.Watcher.Event
             : base(nameof(YouTubeChangeInfoEvent), latest, dt)
         {
             OldItem = old;
+            EventChangeType = ChangeType.Other;
             if (Item.LiveStartDate != OldItem.LiveStartDate && Item.LiveStartDate != DateTime.MinValue)
             {
-                if (Item.Livers != OldItem.Livers) EventChangeType = ChangeType.Both;
-                else EventChangeType = ChangeType.Date;
+                EventChangeType = ChangeType.Date;
                 string format;
                 if (old.LiveStartDate.Year != latest.LiveStartDate.Year) format = "yyyy/MM/dd HH:mm";
                 else format = "MM/dd HH:mm";
@@ -111,8 +111,11 @@ namespace VTuberNotifier.Watcher.Event
                 dic.Add("ChangeDate", $"{ContentFormat["OldDate"]} → {ContentFormat["Date"]}");
                 ContentFormat = dic;
             }
-            else if (Item.Livers != OldItem.Livers) EventChangeType = ChangeType.Livers;
-            else EventChangeType = ChangeType.Other;
+            if (!Item.Livers.SequenceEqual(OldItem.Livers))
+            {
+                if (EventChangeType == ChangeType.Date) EventChangeType = ChangeType.Both;
+                else EventChangeType = ChangeType.Livers;
+            }
         }
 
         public override string GetDiscordContent(LiverDetail liver)
