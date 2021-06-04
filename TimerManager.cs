@@ -14,7 +14,7 @@ namespace VTuberNotifier
     {
         public static TimerManager Instance { get; private set; } = null;
         public int TimerCount { get; private set; } = 0;
-        private Dictionary<int, HashSet<Func<Task>>> ActionList { get; }
+        private Dictionary<(int, int), HashSet<Func<Task>>> ActionList { get; }
         private Dictionary<DateTime, HashSet<Func<Task>>> AlarmList { get; }
 
         public const int Interval = 10;
@@ -31,7 +31,7 @@ namespace VTuberNotifier
             Task.Delay(Interval * 1000 - sec - now.Millisecond).Wait();
             Timer.Start();
             TimerReset = DateTime.Today.AddDays(1);
-            ActionList = new() { { 600, new() { Report } } };
+            ActionList = new() { { (30, 0), new() { Report } } };
             AlarmList = new();
             LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "Timer", "Timer Start!"));
 
@@ -51,17 +51,18 @@ namespace VTuberNotifier
             if (Instance == null) Instance = new TimerManager();
         }
 
-        public void AddAction(int second, Func<Task> action)
+        public void AddAction(int second, Func<Task> action, int delay = 0)
         {
-            second = (int)Math.Round(second / (double)Interval);
-            if (!ActionList.ContainsKey(second)) ActionList.Add(second, new());
-            ActionList[second].Add(action);
+            var key = ((int)Math.Round(second / (double)Interval), delay);
+            if (!ActionList.ContainsKey(key)) ActionList.Add(key, new());
+            ActionList[key].Add(action);
         }
-        public void RemoveAction(int second, Func<Task> action)
+        public void RemoveAction(int second, Func<Task> action, int delay = 0)
         {
-            second = (int)Math.Round(second / (double)Interval);
-            if (!ActionList.ContainsKey(second)) return;
-            ActionList[second].Remove(action);
+            var key = ((int)Math.Round(second / (double)Interval), delay);
+            if (!ActionList.ContainsKey(key)) return;
+            ActionList[key].Remove(action);
+            if (ActionList[key].Count == 0) ActionList.Remove(key);
         }
 
         public void AddAlarm(DateTime dt, Func<Task> action)
@@ -93,9 +94,9 @@ namespace VTuberNotifier
             try
             {
                 var list = new List<Task>();
-                foreach (var (sec, set) in ActionList)
+                foreach (var ((sec, delay), set) in ActionList)
                 {
-                    if (TimerCount % sec == 0)
+                    if (TimerCount % sec == delay)
                         foreach (var func in set) list.Add(func.Invoke());
                 }
                 var dt = now.AddSeconds(-now.Second).AddMilliseconds(-now.Millisecond);
