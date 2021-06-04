@@ -30,7 +30,7 @@ namespace VTuberNotifier.Watcher
             BoothWatcher.CreateInstance();
             tm.AddAction(20 * 60, BoothTask);
             PRTimesFeed.CreateInstance();
-            tm.AddAction(20 * 60, PRTimesTask);
+            tm.AddAction(20 * 60, PRTimesTask, 300 / TimerManager.Interval);
             TwitterWatcher.CreateInstance();
             //tm.AddAction(60, TwitterTask);
             YouTubeFeed.CreateInstance();
