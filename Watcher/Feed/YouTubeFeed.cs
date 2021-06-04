@@ -301,8 +301,7 @@ namespace VTuberNotifier.Watcher.Feed
             {
                 if (liver == channel) continue;
 
-                if (Description.Contains(liver.YouTubeId) || Description.Contains('@' + liver.ChannelName) ||
-                    Title.Contains(liver.Name))
+                if (Description.Contains(liver.YouTubeId) || Description.Contains('@' + liver.ChannelName))
                     res.Add(liver);
             }
             Livers = res;
