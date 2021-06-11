@@ -11,6 +11,7 @@ using System.Web;
 using VTuberNotifier.Notification;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Watcher.Event;
+using System.Net.Http;
 
 namespace VTuberNotifier.Watcher.Feed
 {
@@ -62,20 +63,22 @@ namespace VTuberNotifier.Watcher.Feed
             {
                 var enc = Encoding.UTF8;
                 var topic = HttpUtility.UrlEncode($"https://www.youtube.com/xml/feeds/videos.xml?channel_id={id}", enc);
-                var callback = HttpUtility.UrlEncode(SettingData.NotificationCallback, enc);
+                var callback = HttpUtility.UrlEncode(Settings.Data.NotificationCallback, enc);
                 var url = "https://pubsubhubbub.appspot.com/subscribe";
-                string data = $"hub.mode=subscribe&hub.verify=async&hub.callback={callback}&hub.topic={topic}";
 
-                using var wc = SettingData.GetWebClient();
-                wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
-                await wc.UploadStringTaskAsync(url, data);
+                var data = new Dictionary<string, string>()
+                {
+                    { "hub.mode", "subscribe" }, { "hub.verify", "async" },
+                    { "hub.callback", callback }, { "hub.topic", topic }
+                };
+                await Settings.Data.HttpClient.PostAsync(url, new FormUrlEncodedContent(data));
 
-                await LocalConsole.Log(this, new(LogSeverity.Info, "NotificationRegister", $"Registerd: {id}"));
+                LocalConsole.Log(this, new(LogSeverity.Info, "NotificationRegister", $"Registerd: {id}"));
                 return true;
             }
             catch (Exception ex)
             {
-                await LocalConsole.Log(this, new(LogSeverity.Error, "NotificationRegister", $"Missing Register: {id}", ex));
+                LocalConsole.Log(this, new(LogSeverity.Error, "NotificationRegister", $"Missing Register: {id}", ex));
                 return false;
             }
         }
@@ -83,7 +86,7 @@ namespace VTuberNotifier.Watcher.Feed
         public YouTubeEvent CheckNewLive(string id, out YouTubeItem item)
         {
             item = null;
-            var req = SettingData.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
+            var req = Settings.Data.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
             req.Id = id;
             req.MaxResults = 1;
 
@@ -91,19 +94,11 @@ namespace VTuberNotifier.Watcher.Feed
             if (res.Items.Count == 0)
                 return new YouTubeDeleteLiveEvent(FutureLiveList.FirstOrDefault(v => v.Id == id));
             var video = res.Items[0];
-            var liver = true;
-            Address ch = LiverData.GetLiverFromYouTubeId(video.Snippet.ChannelId);
-            if (ch == null) ch = LiverGroup.GroupList.FirstOrDefault(g => g.YouTubeId == id);
-            if (ch == null)
-            {
-                ch = LiveChannel.GetLiveChannelList().FirstOrDefault(c => c.YouTubeId == id);
-                liver = false;
-            }
-            if (ch == null) return null;
 
-            item = new(video);
-            var old = FoundLiveList[ch].FirstOrDefault(v => v.Id == id);
-            var list = new List<YouTubeItem>(FoundLiveList[ch]) { item };
+            item = new(res.Items[0]);
+            if (item.Channel == null) return null;
+            var old = FoundLiveList[item.Channel].FirstOrDefault(v => v.Id == id);
+            var list = new List<YouTubeItem>(FoundLiveList[item.Channel]) { item };
             YouTubeEvent evt = null;
             bool add = false;
             if (old != null)
@@ -116,64 +111,26 @@ namespace VTuberNotifier.Watcher.Feed
                     FutureLiveList = future;
                     if (!item.Equals(old))
                     {
-                        if (item.Livers.Count != 0)
-                        {
-                            evt = new YouTubeChangeInfoEvent(old, item);
-                            add = true;
-                        }
-                        else
-                        {
-                            evt = new YouTubeDeleteLiveEvent(item);
-                            add = false;
-                        }
+                        add = item.Livers.Count != 0;
+                        evt = add ? YouTubeChangeEvent.CreateEvent(old, item) : new YouTubeDeleteLiveEvent(item);
                     }
                     else add = true;
                 }
-                else if (!liver && item.Livers.Count != old.Livers.Count && item.Livers.Count != 0)
+                else if (item.Livers.Count != old.Livers.Count && item.Livers.Count != 0)
                 {
-                    if (item.Mode == YouTubeItem.YouTubeMode.Live)
-                    {
-                        evt = new YouTubeNewLiveEvent(item);
-                        add = true;
-                    }
-                    else if (item.Mode == YouTubeItem.YouTubeMode.Premire)
-                    {
-                        evt = new YouTubeNewPremireEvent(item);
-                        add = true;
-                    }
-                    else evt = new YouTubeNewVideoEvent(item);
+                    evt = YouTubeNewEvent.CreateEvent(item);
+                    add = item.Mode != YouTubeItem.YouTubeMode.Video;
                 }
             }
-            else
+            else if(item.Livers.Count != 0)
             {
-                if (item.Livers.Count == 0)
-                {
-                    add = false;
-                    evt = null;
-                }
-                else
-                {
-                    if (item.Mode == YouTubeItem.YouTubeMode.Video)
-                    {
-                        add = false;
-                        evt = new YouTubeNewVideoEvent(item);
-                    }
-                    else
-                    {
-                        add = video.LiveStreamingDetails.ActualStartTime == null && item.LiveStartDate > DateTime.Now &&
-                            video.Snippet.LiveBroadcastContent == "upcoming";
-                        if (add)
-                        {
-                            if (item.Mode == YouTubeItem.YouTubeMode.Live)
-                                evt = new YouTubeNewLiveEvent(item);
-                            else if (item.Mode == YouTubeItem.YouTubeMode.Premire)
-                                evt = new YouTubeNewPremireEvent(item);
-                        }
-                    }
-                }
+                add = item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
+                    && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming";
+                if (item.Mode == YouTubeItem.YouTubeMode.Video || add)
+                    evt = YouTubeNewEvent.CreateEvent(item);
             }
-            FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [ch] = list };
-            DataManager.Instance.DataSave($"youtube/{ch.YouTubeId}", list, true);
+            FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [item.Channel] = list };
+            DataManager.Instance.DataSave($"youtube/{item.Channel.YouTubeId}", list, true);
 
             if (add)
             {
@@ -195,11 +152,11 @@ namespace VTuberNotifier.Watcher.Feed
                 var e = tasks[i].Result;
                 if (e != null)
                 {
-                    if (e is YouTubeChangeInfoEvent ce)
+                    if (e is YouTubeChangeEvent ce)
                     {
                         list.Remove(ce.OldItem);
                         list.Insert(i - delc, ce.Item);
-                        if (ce.EventChangeType != YouTubeChangeInfoEvent.ChangeType.Other)
+                        if (ce is not YouTubeChangeEvent.OtherEvent)
                             evts.Add(e);
                     }
                     else
@@ -220,7 +177,7 @@ namespace VTuberNotifier.Watcher.Feed
             static async Task<YouTubeEvent> CheckFutureLive(YouTubeItem item)
             {
                 if (item.Mode == YouTubeItem.YouTubeMode.Video) return new YouTubeAlradyLivedEvent(item);
-                var req = SettingData.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
+                var req = Settings.Data.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
                 req.Id = item.Id;
                 req.MaxResults = 1;
 
@@ -232,7 +189,7 @@ namespace VTuberNotifier.Watcher.Feed
                 else if (video.LiveStreamingDetails?.ActualStartTime != null && video.Snippet.LiveBroadcastContent == "none")
                     return new YouTubeAlradyLivedEvent(item);
                 else if (!item.Equals(video) || item.UpdatedDate < DateTime.Now.AddDays(-7))
-                    return new YouTubeChangeInfoEvent(item, new(video));
+                    return YouTubeChangeEvent.CreateEvent(item, new(video));
                 else return null;
             }
         }
@@ -315,8 +272,7 @@ namespace VTuberNotifier.Watcher.Feed
             }
             else
             {
-                Channel = channel ?? LiveChannel.GetLiveChannelList().FirstOrDefault(c => c.YouTubeId == chid)
-                        ?? throw new NullReferenceException();
+                Channel = channel ?? LiveChannel.GetLiveChannelList().FirstOrDefault(c => c.YouTubeId == chid);
                 IsOfficialChannel = false;
                 IsCollaboration = Livers.Count == 1;
             }

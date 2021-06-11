@@ -32,15 +32,14 @@ namespace VTuberNotifier.Watcher.Store
 
         public async Task<List<ProductBase>> GetNewProduct()
         {
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "Start task."));
-            using var wc = SettingData.GetWebClient();
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewProduct", "Start task."));
             var list = new List<ProductBase>();
             var end = false;
             var page = 0;
 
             while (!end && page < 3)
             {
-                var htmll = await wc.DownloadStringTaskAsync($"https://shop.nijisanji.jp/s/niji/item/list?so=NW&page={page}");
+                var htmll = await Settings.Data.HttpClient.GetStringAsync($"https://shop.nijisanji.jp/s/niji/item/list?so=NW&page={page}");
                 var doc = new HtmlDocument();
                 doc.LoadHtml(htmll);
 
@@ -55,7 +54,7 @@ namespace VTuberNotifier.Watcher.Store
                     var labels = nodes[i].SelectSingleNode("./div/div[@class='tag-area']/div");
                     var coming = labels.SelectSingleNode("./span[@class='itemlabel itemlabel--coming']").Attributes["style"].Value.Trim() == "display: none;";
 
-                    var htmlp = await wc.DownloadStringTaskAsync(url);
+                    var htmlp = await Settings.Data.HttpClient.GetStringAsync(url);
                     var doc1 = new HtmlDocument();
                     doc1.LoadHtml(htmlp);
                     var n1 = doc1.DocumentNode.SelectSingleNode("//html/body/div/main/div/div/div[@class='col-sm-12 col-md-6 item-main detail_right']");
@@ -71,7 +70,7 @@ namespace VTuberNotifier.Watcher.Store
                     {
                         var name = p.SelectSingleNode("./div[@class='variation-name']/span").InnerText.Trim();
                         var str = p.SelectSingleNode("./div[@class='variation-price']/div").InnerText.Replace("&yen;", "").Replace("\\", "").Trim();
-                        var price = int.Parse(str, NumberStyles.Currency, SettingData.Culture);
+                        var price = int.Parse(str, NumberStyles.Currency, Settings.Data.Culture);
                         plist.Add((name, price));
                     }
 
@@ -88,17 +87,17 @@ namespace VTuberNotifier.Watcher.Store
                     {
                         var dates = m1.Value.Split('～');
                         var str_s = $"{Regex.Match(dates[0], "\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[0], "\\d\\d:\\d\\d").Value}";
-                        s = DateTime.ParseExact(str_s, "M/d HH:mm", SettingData.Culture);
+                        s = DateTime.ParseExact(str_s, "M/d HH:mm", Settings.Data.Culture);
                         var str_e = $"{Regex.Match(dates[1], "\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[1], "\\d\\d:\\d\\d").Value}";
-                        e = DateTime.ParseExact(str_e, "M/d HH:mm", SettingData.Culture);
+                        e = DateTime.ParseExact(str_e, "M/d HH:mm", Settings.Data.Culture);
                     }
                     else if (m2.Success)
                     {
                         var dates = m2.Value.Split('～');
                         var str_s = $"{Regex.Match(dates[0], "\\d{4}/\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[0], "\\d\\d:\\d\\d").Value}";
-                        s = DateTime.ParseExact(str_s, "yyyy/M/d HH:mm", SettingData.Culture);
+                        s = DateTime.ParseExact(str_s, "yyyy/M/d HH:mm", Settings.Data.Culture);
                         var str_e = $"{Regex.Match(dates[1], "\\d{4}/\\d\\d?/\\d\\d?").Value} {Regex.Match(dates[1], "\\d\\d:\\d\\d").Value}";
-                        e = DateTime.ParseExact(str_e, "yyyy/M/d HH:mm", SettingData.Culture);
+                        e = DateTime.ParseExact(str_e, "yyyy/M/d HH:mm", Settings.Data.Culture);
                     }
 
                     var np = new NijisanjiProduct(title, url, cate, genre, explain, plist, s, e, coming);
@@ -117,14 +116,13 @@ namespace VTuberNotifier.Watcher.Store
                 FoundProducts = new List<NijisanjiProduct>(FoundProducts.Concat(list.Select(p => (NijisanjiProduct)p)));
                 await DataManager.Instance.DataSaveAsync("store/nijisanji", FoundProducts, true);
             }
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "End task."));
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewProduct", "End task."));
             return list;
         }
 
         public async Task<bool> CheckOnSale(NijisanjiProduct product)
         {
-            using var wc = SettingData.GetWebClient();
-            var htmll = await wc.DownloadStringTaskAsync(product.Url);
+            var htmll = await Settings.Data.HttpClient.GetStringAsync(product.Url);
             var doc = new HtmlDocument();
             doc.LoadHtml(htmll);
 

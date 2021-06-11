@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
-using System.Text.Json;
+using System.Net.Http.Json;
 using VTuberNotifier.Watcher;
 
 namespace VTuberNotifier
@@ -30,7 +30,7 @@ namespace VTuberNotifier
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseStartup<Startup>().UseUrls("http://localhost:61104");
+                    webBuilder.UseStartup<Startup>().UseUrls($"http://localhost:{Settings.Data.WebPort}");
                 });
     }
 
@@ -84,13 +84,11 @@ namespace VTuberNotifier
         {
             try
             {
-                using var wc = SettingData.GetWebClient();
-                wc.Headers.Add("Content-Type", "application/json");
-                var error = new ErrorRequest { AppName = "VInfoNotifier", ErrorLog = "Application stopped", IsExit = true };
-                wc.UploadString("http://localhost:55555/app", JsonSerializer.Serialize(error));
+                Settings.Data.HttpClient.PostAsJsonAsync("http://localhost:55555/app",
+                    new ErrorRequest { AppName = "VInfoNotifier", ErrorLog = "Application stopped.", IsExit = true }).Wait();
             }
-            catch (Exception) { }
-            SettingData.Dispose();
+            catch { }
+            Settings.Data.Dispose();
             TimerManager.Instance.Dispose();
         }
     }
@@ -102,17 +100,17 @@ namespace VTuberNotifier
         {
             _name = name.Split('.')[^1];
         }
-        public IDisposable BeginScope<TState>(TState state) => null;
+        public IDisposable BeginScope<T>(T state) => null;
         public bool IsEnabled(LogLevel logLevel) => true;
 
-        public void Log<TState>(LogLevel level, EventId id, TState state, Exception ex, Func<TState, Exception, string> formatter)
+        public void Log<T>(LogLevel level, EventId id, T state, Exception ex, Func<T, Exception, string> formatter)
         {
             LogSeverity severity = LogSeverity.Debug;
             if (level == LogLevel.Information) severity = LogSeverity.Info;
             else if (level == LogLevel.Warning) severity = LogSeverity.Warning;
             else if (level == LogLevel.Error) severity = LogSeverity.Error;
             else if (level == LogLevel.Critical) severity = LogSeverity.Critical;
-            LocalConsole.Log("ASP.NET", new(severity, _name, formatter(state, ex), ex)).Wait();
+            LocalConsole.Log("ASP.NET", new(severity, _name, formatter(state, ex), ex));
         }
     }
 
@@ -125,9 +123,9 @@ namespace VTuberNotifier
             _loggers = new();
         }
 
-        public ILogger CreateLogger(string categoryName)
+        public ILogger CreateLogger(string category)
         {
-            return _loggers.GetOrAdd(categoryName, name => new ConsoleLogger(name));
+            return _loggers.GetOrAdd(category, name => new ConsoleLogger(name));
         }
 
         protected virtual void Dispose(bool disposing)
@@ -139,10 +137,11 @@ namespace VTuberNotifier
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        ~ConsoleLoggerProvider()
-        {
-            Dispose(disposing: false);
-        }
+    }
+
+    public struct NormalRequest
+    {
+        public string AppName { get; set; }
     }
 
     public struct ErrorRequest

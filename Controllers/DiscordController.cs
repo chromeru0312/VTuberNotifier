@@ -23,14 +23,14 @@ namespace VTuberNotifier.Controllers
             foreach (byte b in bs) res.Append(b.ToString("X2"));
             if (res.ToString() != Hash) return Unauthorized();
 
-            var client = SettingData.DiscordClient;
+            var client = Settings.Data.DiscordClient;
             foreach (var (guild, channel) in DiscordBot.Instance.AllChannels)
             {
                 var g = client.GetGuild(guild);
                 var ch = g.GetTextChannel(channel);
                 await ch.SendMessageAsync(content.Message);
             }
-            await LocalConsole.Log("DiscordCtl", new LogMessage(LogSeverity.Info, "Notification", $"Success to notify content to all channels."));
+            LocalConsole.Log("DiscordCtl", new (LogSeverity.Info, "Notification", $"Success to notify content to all channels."));
             return Ok();
         }
     }

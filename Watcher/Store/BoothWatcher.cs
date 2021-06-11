@@ -38,11 +38,10 @@ namespace VTuberNotifier.Watcher.Store
         {
             var list = new List<BoothProduct>();
             if (!shop.IsExistBooth) return list;
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"Start task. [shop:{shop.GroupId}]"));
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewProduct", $"Start task. [shop:{shop.GroupId}]"));
             var shop_name = shop.GroupId;
 
-            using var wc = SettingData.GetWebClient();
-            string htmll = await wc.DownloadStringTaskAsync($"https://{shop_name}.booth.pm/");
+            string htmll = await Settings.Data.HttpClient.GetStringAsync($"https://{shop_name}.booth.pm/");
             var doc = new HtmlDocument();
             doc.LoadHtml(htmll);
 
@@ -52,10 +51,10 @@ namespace VTuberNotifier.Watcher.Store
             if (nodes == null) return list;
             for (int i = 0; i < nodes.Count; i++)
             {
-                var id = long.Parse(nodes[i].Attributes["data-product-id"].Value.Trim(), SettingData.Culture);
+                var id = long.Parse(nodes[i].Attributes["data-product-id"].Value.Trim(), Settings.Data.Culture);
                 if (FoundProducts[shop].Count != 0 && FoundProducts[shop].FirstOrDefault(p => p.Id == id) != null) break;
 
-                var htmlp = await wc.DownloadStringTaskAsync($"https://{shop.GroupId}.booth.pm/items/{id}");
+                var htmlp = await Settings.Data.HttpClient.GetStringAsync($"https://{shop.GroupId}.booth.pm/items/{id}");
                 var doc1 = new HtmlDocument();
                 doc1.LoadHtml(htmlp);
 
@@ -82,7 +81,7 @@ namespace VTuberNotifier.Watcher.Store
                         var nname = ni.SelectSingleNode("./div[@class='variation-name']/div");
                         var name = nname == null ? title : nname.InnerText.Trim();
                         var price = int.Parse(ni.SelectSingleNode("./div[@class='variation-price']").InnerText[1..].Trim(),
-                            NumberStyles.Currency, SettingData.Culture);
+                            NumberStyles.Currency, Settings.Data.Culture);
                         items.Add((name, price));
                     }
                 }
@@ -96,7 +95,7 @@ namespace VTuberNotifier.Watcher.Store
                         if (label != null) name = label.InnerText.Trim();
                         else name = ni.SelectSingleNode("./div/span").InnerText.Trim();
                         var price = int.Parse(ni.SelectSingleNode("./input").Attributes["data-product-price"].Value.Trim(),
-                            NumberStyles.Currency, SettingData.Culture);
+                            NumberStyles.Currency, Settings.Data.Culture);
                         items.Add((name, price));
                     }
                 }
@@ -107,9 +106,9 @@ namespace VTuberNotifier.Watcher.Store
                 if (ndate != null)
                 {
                     var s_node = ndate.SelectSingleNode("./div[@class='start_at']");
-                    if (s_node != null) s = DateTime.Parse(s_node.InnerText.Trim().Replace("から", ""), SettingData.Culture);
+                    if (s_node != null) s = DateTime.Parse(s_node.InnerText.Trim().Replace("から", ""), Settings.Data.Culture);
                     var e_node = ndate.SelectSingleNode("./div[@class='end_at']");
-                    if (e_node != null) e = DateTime.Parse(e_node.InnerText.Trim().Replace("まで", ""), SettingData.Culture);
+                    if (e_node != null) e = DateTime.Parse(e_node.InnerText.Trim().Replace("まで", ""), Settings.Data.Culture);
                 }
                 var bp = new BoothProduct(title, shop, id, cate, tags, explain, items, s, e);
                 if (!FoundProducts[shop].Contains(bp)) list.Add(bp);
@@ -120,7 +119,7 @@ namespace VTuberNotifier.Watcher.Store
                 { [shop] = new List<BoothProduct>(FoundProducts[shop].Concat(list)) };
                 await DataManager.Instance.DataSaveAsync($"store/booth/{shop.GroupId}", FoundProducts[shop], true);
             }
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", $"End task. [shop:{shop.GroupId}]"));
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewProduct", $"End task. [shop:{shop.GroupId}]"));
             return list;
         }
     }
@@ -160,7 +159,7 @@ namespace VTuberNotifier.Watcher.Store
 
                 reader.Read();
                 if (reader.TokenType == JsonTokenType.EndObject)
-                    return new(long.Parse(id, SettingData.Culture), title, url, shop, category, tags, items, livers, start, end);
+                    return new(long.Parse(id, Settings.Data.Culture), title, url, shop, category, tags, items, livers, start, end);
                 throw new JsonException();
             }
 

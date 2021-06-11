@@ -31,15 +31,14 @@ namespace VTuberNotifier.Watcher.Store
 
         public async Task<List<ProductBase>> GetNewProduct()
         {
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "Start task."));
-            using var wc = SettingData.GetWebClient();
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewProduct", "Start task."));
             var list = new List<ProductBase>();
             var end = false;
             var page = 1;
 
             while (!end && page <= 3)
             {
-                var htmll = await wc.DownloadStringTaskAsync($"https://4693.live/?page={page}");
+                var htmll = await Settings.Data.HttpClient.GetStringAsync($"https://4693.live/?page={page}");
                 var doc = new HtmlDocument();
                 doc.LoadHtml(htmll);
 
@@ -50,7 +49,7 @@ namespace VTuberNotifier.Watcher.Store
                 for (int i = 0; i < nodes.Count; i++)
                 {
                     var url = "https://4693.live" + nodes[i].Attributes["href"].Value.Trim();
-                    var htmlp = await wc.DownloadStringTaskAsync(url);
+                    var htmlp = await Settings.Data.HttpClient.GetStringAsync(url);
                     var doc1 = new HtmlDocument();
                     doc1.LoadHtml(htmlp);
 
@@ -69,7 +68,7 @@ namespace VTuberNotifier.Watcher.Store
                     var title = inner.SelectSingleNode("./h1[@class='item_name']").InnerText.Trim();
                     var pn = inner.SelectSingleNode("./p[@class='item_price']");
                     var ps = pn.InnerText.Replace(pn.SelectSingleNode("./span").InnerText, "").Replace("&yen;", "").Replace("\\", "").Trim();
-                    var price = int.Parse(ps, NumberStyles.Currency, SettingData.Culture);
+                    var price = int.Parse(ps, NumberStyles.Currency, Settings.Data.Culture);
                     var plist = new List<(string, int)>() { (title, price) };
 
                     DateTime? s = null, e = null;
@@ -97,7 +96,7 @@ namespace VTuberNotifier.Watcher.Store
                 FoundProducts = new List<DotliveProduct>(FoundProducts.Concat(list.Select(p => (DotliveProduct)p)));
                 await DataManager.Instance.DataSaveAsync("store/dotlive", FoundProducts, true);
             }
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewProduct", "End task."));
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewProduct", "End task."));
             return list;
         }
     }

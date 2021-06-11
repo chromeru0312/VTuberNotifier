@@ -51,9 +51,9 @@ namespace VTuberNotifier.Liver
         public static IReadOnlyList<LiverGroupDetail> GroupList { get; }
             = new List<LiverGroupDetail> { Nijiasnji, Hololive, Dotlive, VLive, V774inc, VOMS, None };
 
-        private static async Task<HashSet<LiverDetail>> NijisanjiMembers(WebClient wc, HtmlDocument _, HashSet<LiverDetail> set)
+        private static async Task<HashSet<LiverDetail>> NijisanjiMembers(HtmlDocument _, HashSet<LiverDetail> set)
         {
-            var str = await wc.DownloadStringTaskAsync(GetUrl("moira"));
+            var str = await Settings.Data.HttpClient.GetStringAsync(GetUrl("moira"));
             var livers = JObject.Parse(str)["pageProps"]["livers"];
             var contents = livers["contents"].AsEnumerable();
             var count = contents.Count();
@@ -64,7 +64,7 @@ namespace VTuberNotifier.Liver
                 foreach (var c in contents)
                 {
                     var url = GetUrl(c["slug"].Value<string>());
-                    var str_d = await wc.DownloadStringTaskAsync(url);
+                    var str_d = await Settings.Data.HttpClient.GetStringAsync(url);
                     var liver = JObject.Parse(str_d)["pageProps"]["liver"];
 
                     var name = liver["name"].Value<string>();
@@ -73,8 +73,7 @@ namespace VTuberNotifier.Liver
                     var twitter = links["twitter"].Value<string>();
 
                     set.Add(new(no, Nijiasnji, name, youtube, twitter));
-                    await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "Nijisanji", $"Complete inspect liver {no - 10000}/{count} : {name}"));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "Nijisanji", $"Complete inspect liver {no - 10000}/{count} : {name}"));
                     no++;
                 }
             }
@@ -86,10 +85,9 @@ namespace VTuberNotifier.Liver
                     "?filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
             }
         }
-        private static async Task<HashSet<LiverDetail>> HololiveMembers(WebClient wc, HtmlDocument _, HashSet<LiverDetail> set)
+        private static async Task<HashSet<LiverDetail>> HololiveMembers(HtmlDocument _, HashSet<LiverDetail> set)
         {
-            wc = SettingData.GetWebClient();
-            var str = await wc.DownloadStringTaskAsync("https://www.hololive.tv/r/v1/sites/11822129/portfolio/categories/47579/products?per=1000");
+            var str = await Settings.Data.HttpClient.GetStringAsync("https://www.hololive.tv/r/v1/sites/11822129/portfolio/categories/47579/products?per=1000");
             var json = JObject.Parse(str);
             var data = json["data"];
             var count = data["paginationMeta"]["totalCount"].Value<int>();
@@ -103,8 +101,7 @@ namespace VTuberNotifier.Liver
                     var youtube = liver["button"]["url"].Value<string>();
 
                     var url = "https://www.hololive.tv" + liver["slugPath"].Value<string>();
-                    wc = SettingData.GetWebClient();
-                    var html = await wc.DownloadStringTaskAsync(url);
+                    var html = await Settings.Data.HttpClient.GetStringAsync(url);
                     var doc = new HtmlDocument();
                     doc.LoadHtml(html);
 
@@ -121,14 +118,13 @@ namespace VTuberNotifier.Liver
                         }
                     }
                     set.Add(new(no, Hololive, name, youtube, twitter));
-                    await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "Hololive", $"Complete inspect liver {no - 20000}/{count} : {name}"));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "Hololive", $"Complete inspect liver {no - 20000}/{count} : {name}"));
                     no++;
                 }
             }
             return set;
         }
-        private static async Task<HashSet<LiverDetail>> DotliveMembers(WebClient _, HtmlDocument doc, HashSet<LiverDetail> set)
+        private static Task<HashSet<LiverDetail>> DotliveMembers(HtmlDocument doc, HashSet<LiverDetail> set)
         {
             var livers = doc.DocumentNode.SelectNodes("/html/body/main/section/section[@class='profile']");
             if (livers.Count != set.Count)
@@ -149,14 +145,13 @@ namespace VTuberNotifier.Liver
                     var old = set.FirstOrDefault(l => l.Name == name);
                     var id = old != null ? old.Id : 30001 + set.Select(l => l.Id - 30000).Concat(nset.Select(l => l.Id - 30000)).Append(0).Max();
                     nset.Add(new(id, Dotlive, name, youtube, twitter));
-                    await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "Dotlive", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "Dotlive", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
                 }
                 set = nset;
             }
-            return set;
+            return Task.FromResult(set);
         }
-        private static async Task<HashSet<LiverDetail>> VliveMembers(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set)
+        private static Task<HashSet<LiverDetail>> VliveMembers(HtmlDocument doc, HashSet<LiverDetail> set)
         {
             var txt = "/html/body/div[@id='wrapper']/div[@class='animate']/div[@id='contents']/main/section/article/div/div" +
                 "/div[@class='jin-3column']";
@@ -184,14 +179,13 @@ namespace VTuberNotifier.Liver
                     var old = set.FirstOrDefault(l => l.Name == name);
                     var id = old != null ? old.Id : 4000 + set.Select(l => l.Id - 40000).Concat(nset.Select(l => l.Id - 40000)).Append(0).Max();
                     nset.Add(new(id, VLive, name, youtube, twitter));
-                    await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "Vlive", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "Vlive", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
                 }
                 set = nset;
             }
-            return set;
+            return Task.FromResult(set);
         }
-        private static async Task<HashSet<LiverDetail>> V774incMembers(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set)
+        private static Task<HashSet<LiverDetail>> V774incMembers(HtmlDocument doc, HashSet<LiverDetail> set)
         {
             var txt = "/html/body/div/div/div[@id='site-root']/div/main/div/div/div/div/div/div/div/section" +
                 "/div[@data-testid='columns']/div/div[@data-testid='inline-content']/div/div/div/div";
@@ -209,14 +203,13 @@ namespace VTuberNotifier.Liver
                     var old = set.FirstOrDefault(l => l.Name == name);
                     var id = old != null ? old.Id : 50001 + set.Select(l => l.Id - 50000).Concat(nset.Select(l => l.Id - 50000)).Append(0).Max();
                     nset.Add(new(id, V774inc, name, youtube, twitter));
-                    await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "774inc", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "774inc", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
                 }
                 set = nset;
             }
-            return set;
+            return Task.FromResult(set);
         }
-        private static async Task<HashSet<LiverDetail>> VomsMembers(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set)
+        private static async Task<HashSet<LiverDetail>> VomsMembers(HtmlDocument doc, HashSet<LiverDetail> set)
         {
             var livers = doc.DocumentNode.SelectNodes("/html/body/div[@id='wrapper']/main/section/div/div/ul/li/a");
             if (livers.Count != set.Count)
@@ -227,7 +220,7 @@ namespace VTuberNotifier.Liver
                     var liver = livers[i];
                     var url = "https://voms.net" + liver.Attributes["href"].Value.Trim();
 
-                    var htmlm = await wc.DownloadStringTaskAsync(url);
+                    var htmlm = await Settings.Data.HttpClient.GetStringAsync(url);
                     var doc1 = new HtmlDocument();
                     doc1.LoadHtml(htmlm);
 
@@ -239,8 +232,7 @@ namespace VTuberNotifier.Liver
                     var old = set.FirstOrDefault(l => l.Name == name);
                     var id = old != null ? old.Id : 60001 + set.Select(l => l.Id - 60000).Concat(nset.Select(l => l.Id - 60000)).Append(0).Max();
                     nset.Add(new(id, VOMS, name, youtube, twitter));
-                    await LocalConsole.Log("MemberLoader",
-                        new(LogSeverity.Info, "Voms", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "Voms", $"Complete inspect liver {i + 1}/{livers.Count} : {name}"));
                 }
                 set = nset;
             }
@@ -293,7 +285,7 @@ namespace VTuberNotifier.Liver
 
                     static string GetChannelIdFromVideo(string id)
                     {
-                        var req = SettingData.YouTubeService.Videos.List("snippet");
+                        var req = Settings.Data.YouTubeService.Videos.List("snippet");
                         req.Id = id;
                         req.MaxResults = 1;
 
@@ -320,7 +312,7 @@ namespace VTuberNotifier.Liver
         public bool IsExistStore { get { return StoreInfo.Url != null; } }
         public VStoreInfo StoreInfo { get; }
 
-        internal delegate Task<HashSet<LiverDetail>> MemberLoad(WebClient wc, HtmlDocument doc, HashSet<LiverDetail> set);
+        internal delegate Task<HashSet<LiverDetail>> MemberLoad(HtmlDocument doc, HashSet<LiverDetail> set);
 
         internal LiverGroupDetail(int id, string groupid, string name, CompanyDetail corp = null, VWebPage? hp = null, MemberLoad action = null,
             string youtube = null, string twitter = null, VWebPage? wiki = null, bool booth = false, VStoreInfo? store = null)
@@ -339,44 +331,43 @@ namespace VTuberNotifier.Liver
         public async Task<HashSet<LiverDetail>> LoadMembers(HashSet<LiverDetail> set)
         {
             if (HomePage.MemberPage == null) return new();
-            using var wc = SettingData.GetWebClient();
             HashSet<LiverDetail> s = set;
             try
             {
                 var doc = new HtmlDocument();
                 if (HomePage.IsLoad)
                 {
-                    string html = await wc.DownloadStringTaskAsync(HomePage.MemberPage);
+                    string html = await Settings.Data.HttpClient.GetStringAsync(HomePage.MemberPage);
                     doc.LoadHtml(html);
                 }
 
                 if (set == null) set = new();
-                s = await MemberLoadAction.Invoke(wc, doc, set);
+                s = await MemberLoadAction.Invoke(doc, set);
                 foreach (var liver in s)
                 {
                     if (liver.YouTubeId == null) continue;
-                    var req = SettingData.YouTubeService.Channels.List("snippet");
+                    var req = Settings.Data.YouTubeService.Channels.List("snippet");
                     req.Id = liver.YouTubeId;
                     var res = await req.ExecuteAsync();
                     liver.SetChannelName(res.Items[0].Snippet.Title);
                 }
-                await LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, $"Finish Loading Members."));
+                LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, $"Finish Loading Members."));
             }
             catch (Exception e)
             {
-                await LocalConsole.Log("MemberLoader", new(LogSeverity.Error, GroupId, $"An error has occured.", e));
+                LocalConsole.Log("MemberLoader", new(LogSeverity.Error, GroupId, $"An error has occured.", e));
             }
             return s;
         }
 
-        private async Task<HashSet<LiverDetail>> CompareMembers(WebClient _, HtmlDocument __, HashSet<LiverDetail> set)
+        private Task<HashSet<LiverDetail>> CompareMembers(HtmlDocument doc, HashSet<LiverDetail> set)
         {
             if (DataManager.Instance.TryDataLoad($"liver/{GroupId}", out HashSet<LiverDetail> livers) && livers.Count != set.Count)
             {
-                await LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, "Reloaded livers list."));
-                return livers;
+                LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, "Reloaded livers list."));
+                return Task.FromResult(livers);
             }
-            return set;
+            return Task.FromResult(set);
         }
     }
 

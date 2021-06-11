@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Notification.Discord;
@@ -44,16 +44,13 @@ namespace VTuberNotifier.Notification
                         var l = only ? liver : null;
                         content = content != "" ? value.ConvertContent(content, l) : value.GetDiscordContent(l);
 
-                        var guild = SettingData.DiscordClient.GetGuild(dc.GuildId);
+                        var guild = Settings.Data.DiscordClient.GetGuild(dc.GuildId);
                         var ch = guild.GetTextChannel(dc.ChannelId);
                         await ch.SendMessageAsync(content);
                     }
                 }
                 if (NotifyWebhookList.ContainsKey(liver))
                 {
-                    using var wc = SettingData.GetWebClient();
-                    wc.Headers[HttpRequestHeader.ContentType] = "application/json;charset=UTF-8";
-                    wc.Headers[HttpRequestHeader.Accept] = "application/json";
                     foreach (var wd in NotifyWebhookList[liver])
                     {
                         if (!wd.GetContent(value.GetType(), out var only, out var content)) continue;
@@ -62,14 +59,21 @@ namespace VTuberNotifier.Notification
 
                         try
                         {
-                            await wc.UploadStringTaskAsync(wd.Url, wd.ConvertContentToJson(content));
+                            using var req = new HttpRequestMessage(HttpMethod.Post, wd.Url);
+                            req.Headers.Add("UserAgent", "VInfoNotifier (ASP.NET 5.0 / Ubuntu 20.04) [@chromeru0312]");
+                            req.Headers.Add("Content-Type", "application/json;charset=UTF-8");
+                            req.Headers.Add("Accept", "application/json");
+                            req.Content = new StringContent(wd.ConvertContentToJson(content));
+                            await Settings.Data.HttpClient.SendAsync(req);
                         }
-                        catch (Exception) { }
+                        catch { }
                     }
                 }
             }
             var now = DateTime.Now;
-            DataManager.Instance.DataSave($"event/{now:yyyyMMdd}/{value.GetType().Name}_{now:HHmmssff}({value.Item.Id})", value);
+            var id = $"event/{now:yyyyMMdd}/{value.GetType().Name}_{now:HHmmssff}({value.Item.Id})";
+            if (value is YouTubeChangeEvent ci) DataManager.Instance.DataSave(id, ci);
+            else DataManager.Instance.DataSave(id, value);
         }
 
         public static bool AddDiscordList(LiverDetail liver, DiscordChannel channel)
@@ -193,15 +197,22 @@ namespace VTuberNotifier.Notification
                 if (s == "youtube")
                     list.AddRange(new List<Type>()
                     {
-                        typeof(YouTubeNewLiveEvent), typeof(YouTubeNewPremireEvent),
-                        typeof(YouTubeNewVideoEvent), typeof(YouTubeChangeInfoEvent),
+                        typeof(YouTubeNewEvent.LiveEvent), typeof(YouTubeNewEvent.PremireEvent),
+                        typeof(YouTubeNewEvent.VideoEvent), typeof(YouTubeChangeEvent.DateEvent),
+                        typeof(YouTubeChangeEvent.LiverEvent), typeof(YouTubeChangeEvent.OtherEvent),
                         typeof(YouTubeDeleteLiveEvent), typeof(YouTubeStartLiveEvent)
                     });
                 else if (s == "youtube_new")
                     list.AddRange(new List<Type>()
                     {
-                        typeof(YouTubeNewLiveEvent), typeof(YouTubeNewPremireEvent),
-                        typeof(YouTubeNewVideoEvent)
+                        typeof(YouTubeNewEvent.LiveEvent), typeof(YouTubeNewEvent.PremireEvent),
+                        typeof(YouTubeNewEvent.VideoEvent)
+                    });
+                else if (s == "youtube_change")
+                    list.AddRange(new List<Type>()
+                    {
+                        typeof(YouTubeChangeEvent.DateEvent), typeof(YouTubeChangeEvent.LiverEvent),
+                        typeof(YouTubeChangeEvent.OtherEvent)
                     });
                 else if (s == "booth" && liver.Group.IsExistBooth)
                     list.AddRange(new List<Type>()
@@ -221,31 +232,30 @@ namespace VTuberNotifier.Notification
         }
         public static bool DetectType(LiverDetail liver, out Type type, string serv)
         {
-            type = null;
-            if (serv == "youtube_new_live")
-                type = typeof(YouTubeNewLiveEvent);
-            else if (serv == "youtube_new_video")
-                type = typeof(YouTubeNewVideoEvent);
-            else if (serv == "youtube_new_premiere")
-                type = typeof(YouTubeNewPremireEvent);
-            else if (serv == "youtube_change")
-                type = typeof(YouTubeChangeInfoEvent);
-            else if (serv == "youtube_delete")
-                type = typeof(YouTubeDeleteLiveEvent);
-            else if (serv == "youtube_start")
-                type = typeof(YouTubeStartLiveEvent);
-            else if (serv == "booth_new" && liver.Group.IsExistBooth)
-                type = typeof(BoothNewProductEvent);
-            else if (serv == "booth_start" && liver.Group.IsExistBooth)
-                type = typeof(BoothStartSellEvent);
-            else if (serv == "store_new" && liver.Group.IsExistStore)
-                type = liver.Group.StoreInfo.NewProductEventType;
-            else if (serv == "store_start")
-                type = liver.Group.StoreInfo.StartSaleEventType;
-            else if (serv == "article")
-                type = typeof(PRTimesNewArticleEvent);
-            else return false;
-            return true;
+            if ((serv.StartsWith("booth") && !liver.Group.IsExistBooth) ||
+                (serv.StartsWith("store") && !liver.Group.IsExistStore))
+            {
+                type = null;
+                return false;
+            }
+            type = serv switch
+            {
+                "youtube_new_live" => typeof(YouTubeNewEvent.LiveEvent),
+                "youtube_new_premiere" => typeof(YouTubeNewEvent.PremireEvent),
+                "youtube_new_video" => typeof(YouTubeNewEvent.VideoEvent),
+                "youtube_change_date" => typeof(YouTubeChangeEvent.DateEvent),
+                "youtube_change_liver" => typeof(YouTubeChangeEvent.LiverEvent),
+                "youtube_change_other" => typeof(YouTubeChangeEvent.OtherEvent),
+                "youtube_delete" => typeof(YouTubeDeleteLiveEvent),
+                "youtube_start" => typeof(YouTubeStartLiveEvent),
+                "booth_new" => typeof(BoothNewProductEvent),
+                "booth_start" => typeof(BoothStartSellEvent),
+                "store_new" => liver.Group.StoreInfo.NewProductEventType,
+                "store_start" => liver.Group.StoreInfo.StartSaleEventType,
+                "article" => typeof(PRTimesNewArticleEvent),
+                _ => null
+            };
+            return type != null;
         }
     }
 }

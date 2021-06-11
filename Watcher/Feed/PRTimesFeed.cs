@@ -3,8 +3,6 @@ using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -42,9 +40,8 @@ namespace VTuberNotifier.Watcher.Feed
             var list = new List<PRTimesArticle>();
             if (group.ProducedCompany == null) return list;
             var id = group.ProducedCompany.Id;
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"Start task. [company:{group.GroupId}]"));
+            LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"Start task. [company:{group.GroupId}]"));
 
-            using var wc = SettingData.GetWebClient();
             XDocument xml = XDocument.Load($"https://prtimes.jp/companyrdf.php?company_id={id}");
             XNamespace ns = xml.Root.Attribute("xmlns").Value;
             var articles = new List<XElement>(xml.Root.Elements(ns + "item"));
@@ -53,16 +50,16 @@ namespace VTuberNotifier.Watcher.Feed
                 var article = articles[i];
                 var link = article.Element(ns + "link").Value.Trim();
                 var title = article.Element(ns + "title").Value.Trim();
-                var aid = uint.Parse(link.Split('/')[^1].Split('.')[0], SettingData.Culture) + (uint)id * 10000;
+                var aid = uint.Parse(link.Split('/')[^1].Split('.')[0], Settings.Data.Culture) + (uint)id * 10000;
                 if (FoundArticles[group].FirstOrDefault(a => a.Id == aid) != null) break;
 
                 var doc = new HtmlDocument();
-                string html = await wc.DownloadStringTaskAsync(link);
+                string html = await Settings.Data.HttpClient.GetStringAsync(link);
                 doc.LoadHtml(html);
                 var text = "//html/body/div[@class='container container-content']/main/div[@class='content']/article/div";
                 var content = doc.DocumentNode.SelectSingleNode(text + "/div").InnerText.Trim();
                 var datetxt = text + "/header/div[@class='information-release']/time";
-                var date = DateTime.Parse(doc.DocumentNode.SelectSingleNode(datetxt).Attributes["datetime"].Value.Trim(), SettingData.Culture);
+                var date = DateTime.Parse(doc.DocumentNode.SelectSingleNode(datetxt).Attributes["datetime"].Value.Trim(), Settings.Data.Culture);
                 list.Add(new(aid, group, title, link, date, content));
             }
             if (list.Count > 0)
@@ -71,7 +68,7 @@ namespace VTuberNotifier.Watcher.Feed
                 { [group] = new List<PRTimesArticle>(FoundArticles[group].Concat(list)) };
                 await DataManager.Instance.DataSaveAsync($"article/{group.GroupId}", FoundArticles[group], true);
             }
-            await LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"End task. [company:{group.GroupId}]"));
+            LocalConsole.Log(this, new (LogSeverity.Debug, "NewArticle", $"End task. [company:{group.GroupId}]"));
             return list;
         }
     }
@@ -121,14 +118,19 @@ namespace VTuberNotifier.Watcher.Feed
             List<LiverDetail> livers = new(LiverData.GetLiversList(group)), res = new();
             List<char> chars = new() { ',', '/', ' ', '\n', '、', '・' },
                 scs = new(chars) { '(', '（', '「' }, ecs = new(chars) { ')', '）', '」' };
+            content = content.ToLower();
             foreach (var liver in livers)
             {
                 var name = liver.Name;
-                if (content.Contains(name))
+                var pos = content.IndexOf(name);
+                while (pos != -1)
                 {
-                    var pos = content.IndexOf(name);
-                    if (ecs.Contains(content.ToLower()[pos + name.Length]) || scs.Contains(content.ToLower()[pos - 1]))
+                    if (ecs.Contains(content[pos + name.Length]) || scs.Contains(content[pos - 1]))
+                    {
                         res.Add(liver);
+                        break;
+                    }
+                    else pos = content.IndexOf(name, pos + name.Length);
                 }
             }
             return res;
