@@ -4,62 +4,76 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Watcher.Feed;
+using static VTuberNotifier.Watcher.Feed.YouTubeItem;
 
 namespace VTuberNotifier.Watcher.Event
 {
     public abstract class YouTubeEvent : EventBase<YouTubeItem>
     {
-        public YouTubeEvent(string evt_name, YouTubeItem value) : base(evt_name, value) { }
-        protected private YouTubeEvent(string evt_name, YouTubeItem value, DateTime dt)
-             : base(evt_name, value, dt) { }
+        public YouTubeEvent(YouTubeItem value) : this(value, DateTime.Now) { }
+        protected private YouTubeEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
     }
 
-    [JsonConverter(typeof(YouTubeNewLiveEventConverter))]
-    public class YouTubeNewLiveEvent : YouTubeEvent
+    public abstract class YouTubeNewEvent : YouTubeEvent
     {
-        [JsonIgnore]
-        public override string FormatContent => "配信待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
+        protected private YouTubeNewEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
 
-        public YouTubeNewLiveEvent(YouTubeItem value) : base(nameof(YouTubeNewLiveEvent), value) { }
-        protected private YouTubeNewLiveEvent(YouTubeItem value, DateTime dt)
-            : base(nameof(YouTubeNewLiveEvent), value, dt) { }
-
-        public class YouTubeNewLiveEventConverter : EventConverter
+        public static YouTubeNewEvent CreateEvent(YouTubeItem item)
         {
-            private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
-                => new YouTubeNewLiveEvent(value, dt);
+            YouTubeNewEvent evt = item.Mode switch
+            {
+                YouTubeMode.Video => new VideoEvent(item),
+                YouTubeMode.Premire => new PremireEvent(item),
+                YouTubeMode.Live => new LiveEvent(item),
+                _ => throw new InvalidCastException()
+            };
+            return evt;
         }
-    }
-    [JsonConverter(typeof(YouTubeNewPremireEventConverter))]
-    public class YouTubeNewPremireEvent : YouTubeEvent
-    {
-        [JsonIgnore]
-        public override string FormatContent => "プレミア公開待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
 
-        public YouTubeNewPremireEvent(YouTubeItem value) : base(nameof(YouTubeNewPremireEvent), value) { }
-        protected private YouTubeNewPremireEvent(YouTubeItem value, DateTime dt)
-            : base(nameof(YouTubeNewPremireEvent), value, dt) { }
-
-        public class YouTubeNewPremireEventConverter : EventConverter
+        [JsonConverter(typeof(YouTubeNewLiveEventConverter))]
+        public class LiveEvent : YouTubeNewEvent
         {
-            private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
-                => new YouTubeNewPremireEvent(value, dt);
+            [JsonIgnore]
+            public override string FormatContent => "配信待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
+
+            public LiveEvent(YouTubeItem value) : this(value, DateTime.Now) { }
+            protected private LiveEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
+
+            public class YouTubeNewLiveEventConverter : EventConverter
+            {
+                private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
+                    => new LiveEvent(value, dt);
+            }
         }
-    }
-    [JsonConverter(typeof(YouTubeNewVideoEventConverter))]
-    public class YouTubeNewVideoEvent : YouTubeEvent
-    {
-        [JsonIgnore]
-        public override string FormatContent => "新規動画が投稿されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
-
-        public YouTubeNewVideoEvent(YouTubeItem value) : base(nameof(YouTubeNewVideoEvent), value) { }
-        protected private YouTubeNewVideoEvent(YouTubeItem value, DateTime dt)
-            : base(nameof(YouTubeNewVideoEvent), value, dt) { }
-
-        public class YouTubeNewVideoEventConverter : EventConverter
+        [JsonConverter(typeof(YouTubeNewPremireEventConverter))]
+        public class PremireEvent : YouTubeNewEvent
         {
-            private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
-                => new YouTubeNewVideoEvent(value, dt);
+            [JsonIgnore]
+            public override string FormatContent => "プレミア公開待機所が作成されました\n{Title}\n参加ライバー : {Livers: / }\n{Date}\n{URL}";
+
+            public PremireEvent(YouTubeItem value) : this(value, DateTime.Now) { }
+            protected private PremireEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
+
+            public class YouTubeNewPremireEventConverter : EventConverter
+            {
+                private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
+                    => new PremireEvent(value, dt);
+            }
+        }
+        [JsonConverter(typeof(YouTubeNewVideoEventConverter))]
+        public class VideoEvent : YouTubeNewEvent
+        {
+            [JsonIgnore]
+            public override string FormatContent => "新規動画が投稿されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
+
+            public VideoEvent(YouTubeItem value) : this(value, DateTime.Now) { }
+            protected private VideoEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
+
+            public class YouTubeNewVideoEventConverter : EventConverter
+            {
+                private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
+                    => new VideoEvent(value, dt);
+            }
         }
     }
     [JsonConverter(typeof(YouTubeStartLiveEventConverter))]
@@ -68,9 +82,8 @@ namespace VTuberNotifier.Watcher.Event
         [JsonIgnore]
         public override string FormatContent => "配信が開始されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
 
-        public YouTubeStartLiveEvent(YouTubeItem value) : base(nameof(YouTubeStartLiveEvent), value) { }
-        protected private YouTubeStartLiveEvent(YouTubeItem value, DateTime dt)
-            : base(nameof(YouTubeStartLiveEvent), value, dt) { }
+        public YouTubeStartLiveEvent(YouTubeItem value) : this(value, DateTime.Now) { }
+        protected private YouTubeStartLiveEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
 
         public class YouTubeStartLiveEventConverter : EventConverter
         {
@@ -78,81 +91,120 @@ namespace VTuberNotifier.Watcher.Event
                 => new YouTubeStartLiveEvent(value, dt);
         }
     }
-    [JsonConverter(typeof(YouTubeChangeInfoEventConverter))]
-    public class YouTubeChangeInfoEvent : YouTubeEvent
+    [JsonConverter(typeof(YouTubeChangeEventConverter))]
+    public abstract class YouTubeChangeEvent : YouTubeEvent
     {
-        public enum ChangeType
-        {
-            Date, Livers, Both, Other
-        }
-        [JsonIgnore]
-        public override string FormatContent => "配信情報が変更されました\n{Title}\n{URL}";
-
-        public ChangeType EventChangeType { get; }
         public YouTubeItem OldItem { get; }
 
-        public YouTubeChangeInfoEvent(YouTubeItem old, YouTubeItem latest) : this(old, latest, DateTime.Now) { }
-        protected private YouTubeChangeInfoEvent(YouTubeItem old, YouTubeItem latest, DateTime dt)
-            : base(nameof(YouTubeChangeInfoEvent), latest, dt)
+        public YouTubeChangeEvent(YouTubeItem old, YouTubeItem latest) : this(old, latest, DateTime.Now) { }
+        protected private YouTubeChangeEvent(YouTubeItem old, YouTubeItem latest, DateTime dt) : base(latest, dt)
         {
             OldItem = old;
-            EventChangeType = ChangeType.Other;
-            if (Item.LiveStartDate != OldItem.LiveStartDate && Item.LiveStartDate != DateTime.MinValue)
-            {
-                EventChangeType = ChangeType.Date;
-                string format;
-                if (old.LiveStartDate.Year != latest.LiveStartDate.Year) format = "yyyy/MM/dd HH:mm";
-                else format = "MM/dd HH:mm";
-
-                var dic = ContentFormat;
-                if (ContentFormat.ContainsKey("Date")) dic.Remove("Date");
-                dic.Add("Date", latest.LiveStartDate.ToString(format));
-                dic.Add("OldDate", old.LiveStartDate.ToString(format));
-                dic.Add("ChangeDate", $"{ContentFormat["OldDate"]} → {ContentFormat["Date"]}");
-                ContentFormat = dic;
-            }
-            if (!Item.Livers.SequenceEqual(OldItem.Livers))
-            {
-                if (EventChangeType == ChangeType.Date) EventChangeType = ChangeType.Both;
-                else EventChangeType = ChangeType.Livers;
-            }
         }
 
-        public override string GetDiscordContent(LiverDetail liver)
+        public static YouTubeChangeEvent CreateEvent(YouTubeItem old, YouTubeItem latest)
         {
-            var str = FormatContent;
-            if (EventChangeType == ChangeType.Livers || EventChangeType == ChangeType.Both)
-            {
-                if (Item.Livers.Except(OldItem.Livers).Contains(liver))
-                {
-                    YouTubeEvent evt;
-                    if (Item.Mode == YouTubeItem.YouTubeMode.Video)
-                        evt = new YouTubeNewVideoEvent(Item);
-                    else if (Item.Mode == YouTubeItem.YouTubeMode.Premire)
-                        evt = new YouTubeNewPremireEvent(Item);
-                    else if (Item.Mode == YouTubeItem.YouTubeMode.Live)
-                        evt = new YouTubeNewLiveEvent(Item);
-                    else throw new InvalidCastException();
-                    str = evt.FormatContent;
-                }
-                else if (Item.Livers.Except(OldItem.Livers).Contains(liver))
-                    str = new YouTubeDeleteLiveEvent(Item).FormatContent;
-                else if (Item.Livers.Intersect(OldItem.Livers).Contains(liver))
-                {
-                    if (EventChangeType == ChangeType.Both)
-                        str = "参加ライバー・配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n参加ライバー : {Livers: / }\n{URL}";
-                    else str = "参加ライバーが変更されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
-                }
-            }
-            else if (EventChangeType == ChangeType.Date)
-                str = "配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n{URL}";
+            YouTubeChangeEvent evt = new OtherEvent(old, latest);
+            if (latest.LiveStartDate != old.LiveStartDate && latest.LiveStartDate != DateTime.MinValue)
+                evt = new DateEvent(old, latest);
+            if (!latest.Livers.SequenceEqual(old.Livers))
+                evt = evt is DateEvent ? new LiversAndDateEvent(old, latest)
+                    : new LiverEvent(old, latest);
+            return evt;
+        }
+
+        protected private void AddDateContentFormats()
+        {
+            string format = OldItem.LiveStartDate.Year != Item.LiveStartDate.Year ? "yyyy/MM/dd HH:mm" : "MM/dd HH:mm";
+
+            var dic = ContentFormat;
+            if (ContentFormat.ContainsKey("Date")) dic.Remove("Date");
+            dic.Add("Date", Item.LiveStartDate.ToString(format));
+            dic.Add("OldDate", OldItem.LiveStartDate.ToString(format));
+            dic.Add("ChangeDate", $"{ContentFormat["OldDate"]} → {ContentFormat["Date"]}");
+            ContentFormat = dic;
+        }
+        protected private string GetLiversDiscordContent(LiverDetail liver)
+        {
+            string str;
+            if (Item.Livers.Except(OldItem.Livers).Contains(liver))
+                str = YouTubeNewEvent.CreateEvent(Item).FormatContent;
+            else if (Item.Livers.Except(OldItem.Livers).Contains(liver))
+                str = new YouTubeDeleteLiveEvent(Item).FormatContent;
+            else str = FormatContent;
 
             return ConvertContent(str, liver);
         }
 
-        public class YouTubeChangeInfoEventConverter : EventConverter
+        [JsonConverter(typeof(YouTubeChangeLiversEventConverter))]
+        public class LiverEvent : YouTubeChangeEvent
         {
-            public override YouTubeChangeInfoEvent Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+            [JsonIgnore]
+            public override string FormatContent => "参加ライバーが変更されました\n{Title}\n参加ライバー : {Livers: / }\n{URL}";
+            public LiverEvent(YouTubeItem old, YouTubeItem latest) : this(old, latest, DateTime.Now) { }
+            protected private LiverEvent(YouTubeItem old, YouTubeItem latest, DateTime dt) : base(old, latest, dt) { }
+            public override string GetDiscordContent(LiverDetail liver) => GetLiversDiscordContent(liver);
+
+            public class YouTubeChangeLiversEventConverter : YouTubeChangeEventConverter
+            {
+                private protected override YouTubeChangeEvent ResultEvent(YouTubeItem old, YouTubeItem latest, DateTime dt)
+                    => new LiverEvent(old, latest, dt);
+            }
+        }
+        [JsonConverter(typeof(YouTubeChangeDateEventConverter))]
+        public class DateEvent : YouTubeChangeEvent
+        {
+            [JsonIgnore]
+            public override string FormatContent => "配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n{URL}";
+            public DateEvent(YouTubeItem old, YouTubeItem latest) : this(old, latest, DateTime.Now) { }
+            protected private DateEvent(YouTubeItem old, YouTubeItem latest, DateTime dt) : base(old, latest, dt)
+            {
+                AddDateContentFormats();
+            }
+
+            public class YouTubeChangeDateEventConverter : YouTubeChangeEventConverter
+            {
+                private protected override YouTubeChangeEvent ResultEvent(YouTubeItem old, YouTubeItem latest, DateTime dt)
+                    => new DateEvent(old, latest, dt);
+            }
+        }
+        [JsonConverter(typeof(YouTubeChangeLiversAndDateEventConverter))]
+        public class LiversAndDateEvent : YouTubeChangeEvent
+        {
+            [JsonIgnore]
+            public override string FormatContent
+                => "参加ライバー・配信開始時刻が変更されました\n{Title}\n{ChangeDate}\n参加ライバー : {Livers: / }\n{URL}";
+            public LiversAndDateEvent(YouTubeItem old, YouTubeItem latest) : this(old, latest, DateTime.Now) { }
+            protected private LiversAndDateEvent(YouTubeItem old, YouTubeItem latest, DateTime dt) : base(old, latest, dt)
+            {
+                AddDateContentFormats();
+            }
+            public override string GetDiscordContent(LiverDetail liver) => GetLiversDiscordContent(liver);
+
+            public class YouTubeChangeLiversAndDateEventConverter : YouTubeChangeEventConverter
+            {
+                private protected override YouTubeChangeEvent ResultEvent(YouTubeItem old, YouTubeItem latest, DateTime dt)
+                    => new LiversAndDateEvent(old, latest, dt);
+            }
+        }
+        [JsonConverter(typeof(YouTubeChangeOtherEventConverter))]
+        public class OtherEvent : YouTubeChangeEvent
+        {
+            [JsonIgnore]
+            public override string FormatContent => "配信情報が変更されました\n{Title}\n{URL}";
+            public OtherEvent(YouTubeItem old, YouTubeItem latest) : this(old, latest, DateTime.Now) { }
+            protected private OtherEvent(YouTubeItem old, YouTubeItem latest, DateTime dt) : base(old, latest, dt) { }
+
+            public class YouTubeChangeOtherEventConverter : YouTubeChangeEventConverter
+            {
+                private protected override YouTubeChangeEvent ResultEvent(YouTubeItem old, YouTubeItem latest, DateTime dt)
+                    => new OtherEvent(old, latest, dt);
+            }
+        }
+
+        public abstract class YouTubeChangeEventConverter : EventConverter
+        {
+            public override YouTubeChangeEvent Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
                 if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
                 var (_, item, date) = ReadBase(ref reader, type, options);
@@ -161,20 +213,21 @@ namespace VTuberNotifier.Watcher.Event
                 var old = JsonSerializer.Deserialize<YouTubeItem>(ref reader, options);
 
                 reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(old, item, date);
+                if (reader.TokenType == JsonTokenType.EndObject) return ResultEvent(old, item, date);
                 throw new JsonException();
             }
             public override void Write(Utf8JsonWriter writer, EventBase<YouTubeItem> value, JsonSerializerOptions options)
             {
-                YouTubeChangeInfoEvent evt = (YouTubeChangeInfoEvent)value;
+                YouTubeChangeEvent evt = (YouTubeChangeEvent)value;
                 writer.WriteStartObject();
                 WriteBase(writer, value, options);
                 writer.WritePropertyName("OldItem");
                 JsonSerializer.Serialize(writer, evt.OldItem, options);
                 writer.WriteEndObject();
             }
-            private protected override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
+            private protected sealed override EventBase<YouTubeItem> ResultEvent(YouTubeItem value, DateTime dt)
                => null;
+            private protected abstract YouTubeChangeEvent ResultEvent(YouTubeItem old, YouTubeItem latest, DateTime dt);
         }
     }
     [JsonConverter(typeof(YouTubeDeleteLiveEventConverter))]
@@ -183,9 +236,8 @@ namespace VTuberNotifier.Watcher.Event
         [JsonIgnore]
         public override string FormatContent => "配信待機所が削除されました\n{Title}\n{URL}";
 
-        public YouTubeDeleteLiveEvent(YouTubeItem value) : base(nameof(YouTubeDeleteLiveEvent), value) { }
-        protected private YouTubeDeleteLiveEvent(YouTubeItem value, DateTime dt)
-            : base(nameof(YouTubeDeleteLiveEvent), value, dt) { }
+        public YouTubeDeleteLiveEvent(YouTubeItem value) : this(value, DateTime.Now) { }
+        protected private YouTubeDeleteLiveEvent(YouTubeItem value, DateTime dt) : base(value, dt) { }
 
         public class YouTubeDeleteLiveEventConverter : EventConverter
         {
@@ -198,6 +250,6 @@ namespace VTuberNotifier.Watcher.Event
         [JsonIgnore]
         public override string FormatContent => null;
 
-        public YouTubeAlradyLivedEvent(YouTubeItem value) : base(nameof(YouTubeDeleteLiveEvent), value) { }
+        public YouTubeAlradyLivedEvent(YouTubeItem value) : base(value) { }
     }
 }

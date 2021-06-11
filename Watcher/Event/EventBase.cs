@@ -21,15 +21,15 @@ namespace VTuberNotifier.Watcher.Event
         protected private Dictionary<string, IEnumerable<object>> ContentFormatEnumerator;
         protected private Dictionary<string, Func<LiverDetail, IEnumerable<string>>> ContentFormatEnumeratorFunc;
 
-        public EventBase(string evt_name, T value) : this(evt_name, value, DateTime.Now) { }
-        protected private EventBase(string evt_name, T value, DateTime dt)
+        public EventBase(T value) : this(value, DateTime.Now) { }
+        protected private EventBase(T value, DateTime dt)
         {
-            EventTypeName = evt_name;
+            EventTypeName = GetType().FullName;
             Item = value;
             CreatedTime = dt;
-            ContentFormat = new(Item.ContentFormat);
-            ContentFormatEnumerator = new(Item.ContentFormatEnumerator);
-            ContentFormatEnumeratorFunc = new(Item.ContentFormatEnumeratorFunc);
+            ContentFormat = new(value.ContentFormat);
+            ContentFormatEnumerator = new(value.ContentFormatEnumerator);
+            ContentFormatEnumeratorFunc = new(value.ContentFormatEnumeratorFunc);
         }
 
         public virtual string GetDiscordContent(LiverDetail liver)

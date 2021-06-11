@@ -6,9 +6,8 @@ namespace VTuberNotifier.Watcher.Event
 {
     public abstract class NewProductEvent<T> : EventBase<T> where T : ProductBase
     {
-        public NewProductEvent(string evt_name, T value) : base(evt_name, value) { }
-        protected private NewProductEvent(string evt_name, T value, DateTime dt)
-            : base(evt_name, value, dt) { }
+        public NewProductEvent(T value) : base(value) { }
+        protected private NewProductEvent(T value, DateTime dt) : base(value, dt) { }
 
         [JsonIgnore]
         public override string FormatContent
@@ -16,9 +15,8 @@ namespace VTuberNotifier.Watcher.Event
     }
     public abstract class StartSellEvent<T> : EventBase<T> where T : ProductBase
     {
-        public StartSellEvent(string evt_name, T value) : base(evt_name, value) { }
-        protected private StartSellEvent(string evt_name, T value, DateTime dt)
-            : base(evt_name, value, dt) { }
+        public StartSellEvent(T value) : base(value) { }
+        protected private StartSellEvent(T value, DateTime dt) : base(value, dt) { }
 
         [JsonIgnore]
         public override string FormatContent
@@ -28,9 +26,8 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(BoothNewProductEventConverter))]
     public class BoothNewProductEvent : NewProductEvent<BoothProduct>
     {
-        public BoothNewProductEvent(BoothProduct value) : base(nameof(BoothNewProductEvent), value) { }
-        protected private BoothNewProductEvent(BoothProduct value, DateTime dt)
-             : base(nameof(BoothNewProductEvent), value, dt) { }
+        public BoothNewProductEvent(BoothProduct value) : base(value) { }
+        protected private BoothNewProductEvent(BoothProduct value, DateTime dt) : base(value, dt) { }
 
         public class BoothNewProductEventConverter : EventConverter
         {
@@ -41,9 +38,8 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(BoothStartSellEventConverter))]
     public class BoothStartSellEvent : StartSellEvent<BoothProduct>
     {
-        public BoothStartSellEvent(BoothProduct value) : base(nameof(BoothStartSellEvent), value) { }
-        protected private BoothStartSellEvent(BoothProduct value, DateTime dt)
-             : base(nameof(BoothStartSellEvent), value, dt) { }
+        public BoothStartSellEvent(BoothProduct value) : base(value) { }
+        protected private BoothStartSellEvent(BoothProduct value, DateTime dt) : base(value, dt) { }
 
         public class BoothStartSellEventConverter : EventConverter
         {
@@ -55,9 +51,8 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(NijisanjiNewProductEventConverter))]
     public class NijisanjiNewProductEvent : NewProductEvent<NijisanjiProduct>
     {
-        public NijisanjiNewProductEvent(NijisanjiProduct value) : base(nameof(NijisanjiNewProductEvent), value) { }
-        protected private NijisanjiNewProductEvent(NijisanjiProduct value, DateTime dt)
-             : base(nameof(NijisanjiNewProductEvent), value, dt) { }
+        public NijisanjiNewProductEvent(NijisanjiProduct value) : base(value) { }
+        protected private NijisanjiNewProductEvent(NijisanjiProduct value, DateTime dt) : base(value, dt) { }
 
         public class NijisanjiNewProductEventConverter : EventConverter
         {
@@ -68,9 +63,8 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(NijisanjiStartSellEventConverter))]
     public class NijisanjiStartSellEvent : StartSellEvent<NijisanjiProduct>
     {
-        public NijisanjiStartSellEvent(NijisanjiProduct value) : base(nameof(NijisanjiStartSellEvent), value) { }
-        protected private NijisanjiStartSellEvent(NijisanjiProduct value, DateTime dt)
-             : base(nameof(NijisanjiStartSellEvent), value, dt) { }
+        public NijisanjiStartSellEvent(NijisanjiProduct value) : base(value) { }
+        protected private NijisanjiStartSellEvent(NijisanjiProduct value, DateTime dt) : base(value, dt) { }
 
         public class NijisanjiStartSellEventConverter : EventConverter
         {
@@ -82,9 +76,8 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(DotliveNewProductEventConverter))]
     public class DotliveNewProductEvent : NewProductEvent<DotliveProduct>
     {
-        public DotliveNewProductEvent(DotliveProduct value) : base(nameof(DotliveNewProductEvent), value) { }
-        protected private DotliveNewProductEvent(DotliveProduct value, DateTime dt)
-             : base(nameof(DotliveNewProductEvent), value, dt) { }
+        public DotliveNewProductEvent(DotliveProduct value) : base(value) { }
+        protected private DotliveNewProductEvent(DotliveProduct value, DateTime dt) : base(value, dt) { }
 
         public class DotliveNewProductEventConverter : EventConverter
         {
@@ -95,9 +88,8 @@ namespace VTuberNotifier.Watcher.Event
     [JsonConverter(typeof(DotliveStartSellEventConverter))]
     public class DotliveStartSellEvent : StartSellEvent<DotliveProduct>
     {
-        public DotliveStartSellEvent(DotliveProduct value) : base(nameof(DotliveStartSellEvent), value) { }
-        protected private DotliveStartSellEvent(DotliveProduct value, DateTime dt)
-             : base(nameof(DotliveStartSellEvent), value, dt) { }
+        public DotliveStartSellEvent(DotliveProduct value) : base(value) { }
+        protected private DotliveStartSellEvent(DotliveProduct value, DateTime dt) : base(value, dt) { }
 
         public class DotliveStartSellEventConverter : EventConverter
         {
