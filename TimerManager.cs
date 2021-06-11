@@ -1,7 +1,7 @@
 ﻿using Discord;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Timers;
 using VTuberNotifier.Notification;
@@ -39,11 +39,10 @@ namespace VTuberNotifier
             {
                 try
                 {
-                    using var wc = SettingData.GetWebClient();
-                    wc.Headers.Add("Content-Type", "text/plain");
-                    await wc.UploadStringTaskAsync("http://localhost:55555/app", "PUT", "{ \"AppName\": \"VInfoNotifier\" }");
+                    await Settings.Data.HttpClient.PutAsJsonAsync("http://localhost:55555/app",
+                        new NormalRequest { AppName = "VInfoNotifier" });
                 }
-                catch (Exception) { }
+                catch { }
             }
         }
         public static void CreateInstance()
@@ -53,13 +52,13 @@ namespace VTuberNotifier
 
         public void AddAction(int second, Func<Task> action, int delay = 0)
         {
-            var key = ((int)Math.Round(second / (double)Interval), delay);
+            var key = ((int)Math.Round(second / (double)Interval), (int)Math.Round(delay / (double)Interval));
             if (!ActionList.ContainsKey(key)) ActionList.Add(key, new());
             ActionList[key].Add(action);
         }
         public void RemoveAction(int second, Func<Task> action, int delay = 0)
         {
-            var key = ((int)Math.Round(second / (double)Interval), delay);
+            var key = ((int)Math.Round(second / (double)Interval), (int)Math.Round(delay / (double)Interval));
             if (!ActionList.ContainsKey(key)) return;
             ActionList[key].Remove(action);
             if (ActionList[key].Count == 0) ActionList.Remove(key);
@@ -109,9 +108,9 @@ namespace VTuberNotifier
                 {
                     TimerCount = 1;
                     TimerReset = DateTime.Today.AddDays(1);
-                    await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "Task", "Reset TimerCount."));
+                    LocalConsole.Log(this, new (LogSeverity.Info, "Task", "Reset TimerCount."));
                     await WatcherTask.Instance.OneDayTask();
-                    await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "Task", "Finished daily task."));
+                    LocalConsole.Log(this, new (LogSeverity.Info, "Task", "Finished daily task."));
                 }
                 foreach (var task in list) await task;
             }
@@ -119,13 +118,11 @@ namespace VTuberNotifier
             {
                 try
                 {
-                    using var wc = SettingData.GetWebClient();
-                    wc.Headers.Add("Content-Type", "application/json");
-                    var error = new ErrorRequest { AppName = "VInfoNotifier", ErrorLog = ex.ToString(), IsExit = false };
-                    await wc.UploadStringTaskAsync("http://localhost:55555/app", JsonSerializer.Serialize(error));
+                    await Settings.Data.HttpClient.PostAsJsonAsync("http://localhost:55555/app",
+                        new ErrorRequest { AppName = "VInfoNotifier", ErrorLog = ex.ToString(), IsExit = false });
                 }
-                catch (Exception) { }
-                await LocalConsole.Log(this, new LogMessage(LogSeverity.Error, "Task", "An unknown error has occured.", ex));
+                catch { }
+                LocalConsole.Log(this, new (LogSeverity.Error, "Task", "An unknown error has occured.", ex));
             }
         }
 
@@ -137,8 +134,8 @@ namespace VTuberNotifier
                 if (disposing)
                 {
                     Timer.Dispose();
+                    disposed = true;
                 }
-                disposed = true;
             }
         }
         public void Dispose()
