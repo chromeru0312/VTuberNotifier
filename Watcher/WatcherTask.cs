@@ -30,7 +30,7 @@ namespace VTuberNotifier.Watcher
             BoothWatcher.CreateInstance();
             tm.AddAction(20 * 60, BoothTask);
             PRTimesFeed.CreateInstance();
-            tm.AddAction(20 * 60, PRTimesTask, 300 / TimerManager.Interval);
+            tm.AddAction(20 * 60, PRTimesTask, 300);
             TwitterWatcher.CreateInstance();
             //tm.AddAction(60, TwitterTask);
             YouTubeFeed.CreateInstance();
@@ -44,32 +44,11 @@ namespace VTuberNotifier.Watcher
             if (Instance == null) Instance = new WatcherTask();
         }
 
-        public async Task YouTubeNotificationTask()
+        public async Task OneDayTask()
         {
-            var list = new List<Address>(LiverData.GetAllLiversList()).Concat(LiverGroup.GroupList).Concat(LiveChannel.GetLiveChannelList());
-            foreach (var address in list)
-            {
-                var id = address.YouTubeId;
-                if (id == null) return;
-
-                bool suc = false;
-                int i = 0;
-                while (!suc && i < 5)
-                {
-                    suc = await YouTubeFeed.Instance.RegisterNotification(id);
-                    if (!suc)
-                    {
-                        if (i < 4)
-                        {
-                            await LocalConsole.Log(this, new(LogSeverity.Warning, "Notification", $"Retrying..."));
-                            await Task.Delay(1000);
-                        }
-                        else await LocalConsole.Log(this, new(LogSeverity.Error, "Notification", $"Failed registration: {id}"));
-                        i++;
-                    }
-                }
-            }
-            await LocalConsole.Log(this, new(LogSeverity.Info, "Notification", $"Finish all registration task."));
+            LocalConsole.CreateNewLogFile();
+            await LiverData.UpdateLivers();
+            await YouTubeNotificationTask();
         }
 
 
@@ -157,6 +136,41 @@ namespace VTuberNotifier.Watcher
             }
         }
 
+        public async Task YouTubeChangeTask()
+        {
+            var list = YouTubeFeed.Instance.CheckLiveChanged();
+            foreach (var evt in list) await NotifyEvent.Notify(evt);
+        }
+
+        public async Task YouTubeNotificationTask()
+        {
+            var list = new List<Address>(LiverData.GetAllLiversList()).Concat(LiverGroup.GroupList).Concat(LiveChannel.GetLiveChannelList());
+            foreach (var address in list)
+            {
+                var id = address.YouTubeId;
+                if (id == null) return;
+
+                bool suc = false;
+                int i = 0;
+                while (!suc && i < 5)
+                {
+                    suc = await YouTubeFeed.Instance.RegisterNotification(id);
+                    if (!suc)
+                    {
+                        if (i < 4)
+                        {
+                            LocalConsole.Log(this, new(LogSeverity.Warning, "Notification", $"Retrying..."));
+                            await Task.Delay(1000);
+                        }
+                        else LocalConsole.Log(this, new(LogSeverity.Error, "Notification", $"Failed registration: {id}"));
+                        i++;
+                    }
+                }
+            }
+            LocalConsole.Log(this, new(LogSeverity.Info, "Notification", $"Finish all registration task."));
+        }
+
+        /*
         public async Task TwitterTask()
         {
             var all = new List<Address>(LiverData.GetAllLiversList().Select(l => (Address)l).Concat(LiverGroup.GroupList));
@@ -191,24 +205,11 @@ namespace VTuberNotifier.Watcher
                             if (video == null) break;
                             var livers = video.Livers;
                             if (all[i] is LiverDetail l && !livers.Contains(l)) livers = new List<LiverDetail>(livers) { l };
-                            await NotifyEvent.Notify(new YouTubeNewLiveEvent(video));
+                            await NotifyEvent.Notify(new YouTubeNewEvent.LiveEvent(video));
                         }
                     }
                 }
             }
-        }
-
-        public async Task YouTubeChangeTask()
-        {
-            var list = YouTubeFeed.Instance.CheckLiveChanged();
-            foreach (var evt in list) await NotifyEvent.Notify(evt);
-        }
-
-        public async Task OneDayTask()
-        {
-            LocalConsole.CreateNewLogFile();
-            await LiverData.UpdateLivers();
-            await YouTubeNotificationTask();
-        }
+        }*/
     }
 }
