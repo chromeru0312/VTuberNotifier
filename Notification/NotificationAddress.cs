@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -23,19 +24,12 @@ namespace VTuberNotifier.Notification
         {
             only = false;
             content = null;
-            if (!MsgContentList.ContainsKey(type)) return false;
-            var str = MsgContentList[type];
-            if (str.StartsWith("@F"))
-            {
-                only = false;
-                content = str[2..];
-            }
-            else
-            {
-                only = true;
-                if (str.StartsWith("@T")) content = str[2..];
-                else content = str;
-            }
+            string str = MsgContentList.ContainsKey(type) ? MsgContentList[type] :
+                MsgContentList.FirstOrDefault(p => p.Key.IsAssignableFrom(type)).Value;
+            if (str == null) return false;
+
+            only = !str.StartsWith("@F");
+            content = !only || str.StartsWith("@T") ? str[2..] : str;
             return true;
         }
         public void SetContent(Type type, bool only, string content)
