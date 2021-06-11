@@ -2,66 +2,80 @@
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Globalization;
 using System.IO;
-using System.Net;
-using System.Text;
+using System.Net.Http;
+using System.Reflection;
 
 namespace VTuberNotifier
 {
-    public static class SettingData
+    public class Settings : IDisposable
     {
-        public static YouTubeService YouTubeService { get { if (_YouTubeService == null) LoadSettingData(); return _YouTubeService; } }
-        private static YouTubeService _YouTubeService = null;
-        public static string NotificationCallback { get { if (_NotificationCallback == null) LoadSettingData(); return _NotificationCallback; } }
-        private static string _NotificationCallback = null;
+        public static Settings Data { get; private set; }
 
-        public static Tokens TwitterToken { get { if (_TwitterToken == null) LoadSettingData(); return _TwitterToken; } }
-        private static Tokens _TwitterToken = null;
+        public int WebPort { get; }
+        public YouTubeService YouTubeService { get; }
+        public string NotificationCallback { get; }
+        public Tokens TwitterToken { get; }
+        public string DiscordToken { get; }
+        public DiscordSocketClient DiscordClient { get; }
+        public CommandService DiscordCmdService { get; }
+        public IServiceProvider ServicePrivider { get; }
+        public HttpClient HttpClient { get; }
+        public CultureInfo Culture { get; }
 
-        public static string DiscordToken { get { if (_DiscordToken == null) LoadSettingData(); return _DiscordToken; } }
-        private static string _DiscordToken;
-        public static DiscordSocketClient DiscordClient { get { if (_DiscordClient == null) LoadSettingData(); return _DiscordClient; } }
-        private static DiscordSocketClient _DiscordClient = null;
-        public static CommandService DiscordCmdService { get { if (_DiscordCmdService == null) LoadSettingData(); return _DiscordCmdService; } }
-        private static CommandService _DiscordCmdService = null;
-        public static IServiceProvider ServicePrivider { get { if (_ServicePrivider == null) LoadSettingData(); return _ServicePrivider; } }
-        private static IServiceProvider _ServicePrivider = null;
-
-        public static CultureInfo Culture { get; } = new ("ja-JP");
-
-        private static void LoadSettingData()
+        private Settings()
         {
             var path = Path.Combine(Path.GetFullPath(@"./"), "Authentication.json");
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
             using var reader = new StreamReader(stream);
             var json = JObject.Parse(reader.ReadToEnd());
 
-            _YouTubeService = new (new() { ApiKey = json["youtube_apiKey"].Value<string>() });
-            _NotificationCallback = json["youtube_callback_url"].Value<string>();
-            _TwitterToken = Tokens.Create(json["twitter_apiKey"].Value<string>(), json["twitter_apiSecret"].Value<string>(),
+            WebPort = json["web_port"].Value<int>();
+            YouTubeService = new(new() { ApiKey = json["youtube_apiKey"].Value<string>() });
+            NotificationCallback = json["youtube_callback_url"].Value<string>();
+            TwitterToken = Tokens.Create(json["twitter_apiKey"].Value<string>(), json["twitter_apiSecret"].Value<string>(),
                 json["twitter_accessKey"].Value<string>(), json["twitter_accessSecret"].Value<string>());
-            _DiscordToken = json["discord_token"].Value<string>();
-            _DiscordClient = new (new () { LogLevel = LogSeverity.Debug });
-            _DiscordCmdService = new ();
-            _ServicePrivider = new ServiceCollection().BuildServiceProvider();
+            DiscordToken = json["discord_token"].Value<string>();
+            DiscordClient = new(new() { LogLevel = LogSeverity.Debug });
+            DiscordCmdService = new();
+            DiscordCmdService.AddModulesAsync(Assembly.GetEntryAssembly(), ServicePrivider).Wait();
+            ServicePrivider = new ServiceCollection().BuildServiceProvider();
+
+            HttpClient = new();
+            Culture = new("ja-JP");
+        }
+        public static void LoadSettingData()
+        {
+            if (Data == null) Data = new();
         }
 
-        public static WebClient GetWebClient()
+        public HttpRequestMessage CreateRequest(HttpMethod method, string url, params (string, string)[] headers)
         {
-            var wc = new WebClient() { Encoding = Encoding.UTF8 };
-            wc.Headers[HttpRequestHeader.UserAgent] = "VInfoNotifier (ASP.NET 5.0 / Ubuntu 20.04) [@chromeru0312]";
-            return wc;
+            var req = new HttpRequestMessage(method, url);
+            req.Headers.Add("UserAgent", "VInfoNotifier (ASP.NET 5.0 / Ubuntu 20.04) [@chromeru0312]");
+            foreach (var (name, value) in headers)
+                req.Headers.Add(name, value);
+            return req;
         }
-        internal static void Dispose()
+
+        protected virtual void Dispose(bool disposing)
         {
+            if (!disposing) return;
+
             YouTubeService.Dispose();
             DiscordClient.Dispose();
+            HttpClient.Dispose();
+            Data = null;
+        }
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

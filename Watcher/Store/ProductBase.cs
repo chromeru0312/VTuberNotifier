@@ -206,12 +206,12 @@ namespace VTuberNotifier.Watcher.Store
                 var livers = JsonSerializer.Deserialize<List<LiverDetail>>(ref reader, options);
                 reader.Read();
                 reader.Read();
-                var sd = DateTime.Parse(reader.GetString(), SettingData.Culture);
+                var sd = DateTime.Parse(reader.GetString(), Settings.Data.Culture);
                 reader.Read();
                 reader.Read();
                 var eds = reader.GetString();
                 DateTime? ed = null;
-                if (eds != null) ed = DateTime.Parse(eds, SettingData.Culture);
+                if (eds != null) ed = DateTime.Parse(eds, Settings.Data.Culture);
                 return (id, title, url, shop, cate, items, livers, sd, ed);
             }
 

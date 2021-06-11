@@ -43,9 +43,9 @@ namespace VTuberNotifier.Watcher
             if (!FoundTweetList.ContainsKey(address))
                 FoundTweetList = new Dictionary<Address, IReadOnlyList<Tweet>>(FoundTweetList) { { address, new List<Tweet>() } };
             SearchResult result;
-            if (FoundTweetList[address].Count == 0 ) result = await SettingData.TwitterToken.Search.TweetsAsync(count => 20,
+            if (FoundTweetList[address].Count == 0 ) result = await Settings.Data.TwitterToken.Search.TweetsAsync(count => 20,
                 q => $"from:{address.TwitterId}", result_type => "recent", trim_user => true, tweet_mode => "extended");
-            else result = await SettingData.TwitterToken.Search.TweetsAsync(q => $"from:{address.TwitterId}", result_type => "recent",
+            else result = await Settings.Data.TwitterToken.Search.TweetsAsync(q => $"from:{address.TwitterId}", result_type => "recent",
                 since_id => FoundTweetList[address][FoundTweetList[address].Count - 1].Id, trim_user => true, tweet_mode => "extended");
             var list = new List<Tweet>();
             foreach(var t in result)
