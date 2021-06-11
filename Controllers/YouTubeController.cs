@@ -21,16 +21,16 @@ namespace VTuberNotifier.Controllers
             if (b)
             {
                 var s = value.ToString();
-                await LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "GET", $"Accept registration. [{s}]"));
+                LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "GET", $"Accept registration. [{s}]"));
                 return Ok(s);
             }
             else
             {
-                if (TimerManager.Instance != null && TimerManager.Instance.TimerCount > 0)
+                if (TimerManager.Instance?.TimerCount > 0)
                 {
                     var sr = new StreamReader(Request.Body);
                     var xml = await sr.ReadToEndAsync();
-                    await LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
+                    LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
                     if (!string.IsNullOrEmpty(xml)) await ReadFeed(xml);
                 }
                 return Ok();

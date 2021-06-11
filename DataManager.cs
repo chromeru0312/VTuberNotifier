@@ -56,13 +56,13 @@ namespace VTuberNotifier
                 await fs.DisposeAsync();
                 if (update) File.Delete(path);
                 File.Move(temp, path);
-                await LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "SaveSystem", $"File Saved. ID:{id}."));
+                LocalConsole.Log(this, new (LogSeverity.Info, "SaveSystem", $"File Saved. ID:{id}."));
                 return true;
             }
             catch (Exception e)
             {
                 if (File.Exists(temp)) File.Delete(temp);
-                await LocalConsole.Log(this, new LogMessage(LogSeverity.Error, "SaveSystem", $"File Saving is failed. ID:{id}.", e));
+                LocalConsole.Log(this, new (LogSeverity.Error, "SaveSystem", $"File Saving is failed. ID:{id}.", e));
                 return false;
             }
         }
@@ -75,7 +75,7 @@ namespace VTuberNotifier
             }
             else
             {
-                LocalConsole.Log(this, new LogMessage(LogSeverity.Warning, "LoadSystem", $"File is not found. ID:{id}."));
+                LocalConsole.Log(this, new (LogSeverity.Warning, "LoadSystem", $"File is not found. ID:{id}."));
                 return null;
             }
         }
@@ -120,7 +120,7 @@ namespace VTuberNotifier
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
             using var sr = new StreamReader(fs);
             obj = sr.ReadToEnd();
-            LocalConsole.Log(this, new LogMessage(LogSeverity.Info, "LoadSystem", $"File Loaded. ID:{id}."));
+            LocalConsole.Log(this, new (LogSeverity.Info, "LoadSystem", $"File Loaded. ID:{id}."));
             return true;
         }
 

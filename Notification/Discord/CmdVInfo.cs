@@ -30,13 +30,13 @@ namespace VTuberNotifier.Notification.Discord
             if (NotifyEvent.AddDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Add", "Add new service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Add", "Add new service."));
                 DiscordBot.Instance.AddChannel(Context.Guild.Id, Context.Channel.Id);
             }
             else
             {
                 await SendError(this, 2, "Some errors has occured.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Warning, "Add", "Failed to add service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Warning, "Add", "Failed to add service."));
             }
 
         }
@@ -65,12 +65,12 @@ namespace VTuberNotifier.Notification.Discord
             if (NotifyEvent.UpdateDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Update", "Update service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Update", "Update service."));
             }
             else
             {
                 await SendError(this, 2, "This channel or service is not alrady added.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Warning, "Update", "Failed to update service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Warning, "Update", "Failed to update service."));
             }
         }
 
@@ -101,18 +101,18 @@ namespace VTuberNotifier.Notification.Discord
             if (!rem && NotifyEvent.UpdateDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Remove", "Update service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Remove", "Update service."));
             }
             else if (rem && NotifyEvent.RemoveDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Debug, "Remove", "Remove service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Remove", "Remove service."));
                 DiscordBot.Instance.RemoveChannel(Context.Guild.Id, Context.Channel.Id);
             }
             else
             {
                 await SendError(this, 2, "This channel is not alrady added.");
-                await LocalConsole.Log("DiscordCmd", new LogMessage(LogSeverity.Warning, "Remove", "Failed to remove service."));
+                LocalConsole.Log("DiscordCmd", new (LogSeverity.Warning, "Remove", "Failed to remove service."));
             }
         }
 

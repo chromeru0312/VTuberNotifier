@@ -39,13 +39,12 @@ namespace VTuberNotifier.Controllers
             if (code == 201)
             {
                 res = new(code, "Success to create and add data of the liver.");
-                await LocalConsole.Log("ChannelCtl",
-                    new LogMessage(LogSeverity.Info, "Add", $"Add data of the liver : {req.Name}."));
+                LocalConsole.Log("ChannelCtl", new (LogSeverity.Info, "Add", $"Add data of the liver : {req.Name}."));
             }
             else if (code == 400)
             {
                 res = new(code, "Failed to create and add data of the liver.");
-                await LocalConsole.Log("ChannelCtl",
+                LocalConsole.Log("ChannelCtl",
                     new LogMessage(LogSeverity.Warning, "Add", $"Failed to add data of the liver : {req.Name}."));
             }
             Response.StatusCode = res.Code;
@@ -67,20 +66,17 @@ namespace VTuberNotifier.Controllers
             if (code == 200)
             {
                 res = new(code, "Success to update data of the liver.");
-                await LocalConsole.Log("ChannelCtl",
-                    new LogMessage(LogSeverity.Info, "Update", $"Update data of the liver : {req.Id}."));
+                LocalConsole.Log("ChannelCtl", new(LogSeverity.Info, "Update", $"Update data of the liver : {req.Id}."));
             }
             else if (code == 400)
             {
                 res = new(code, "Failed to update data of the liver.");
-                await LocalConsole.Log("ChannelCtl",
-                    new LogMessage(LogSeverity.Warning, "Update", $"Failed to update data of the liver : {req.Id}."));
+                LocalConsole.Log("ChannelCtl", new(LogSeverity.Warning, "Update", $"Failed to update data of the liver : {req.Id}."));
             }
             else if (code == 404)
             {
                 res = new(code, "The specified ID cannot be found.");
-                await LocalConsole.Log("ChannelCtl",
-                    new LogMessage(LogSeverity.Warning, "Update", $"The specified ID cannot be found : {req.Id}."));
+                LocalConsole.Log("ChannelCtl", new(LogSeverity.Warning, "Update", $"The specified ID cannot be found : {req.Id}."));
             }
             Response.StatusCode = res.Code;
             return res;
@@ -101,14 +97,12 @@ namespace VTuberNotifier.Controllers
             if (code == 200)
             {
                 res = new(code, "Success to delete data of the liver.");
-                await LocalConsole.Log("ChannelCtl",
-                    new LogMessage(LogSeverity.Info, "Delete", $"Delete data of the liver : {req.Id}."));
+                LocalConsole.Log("ChannelCtl", new (LogSeverity.Info, "Delete", $"Delete data of the liver : {req.Id}."));
             }
             else if (code == 404)
             {
                 res = new(code, "The specified ID cannot be found.");
-                await LocalConsole.Log("ChannelCtl",
-                    new LogMessage(LogSeverity.Warning, "Delete", $"The specified ID cannot be found : {req.Id}."));
+                LocalConsole.Log("ChannelCtl", new (LogSeverity.Warning, "Delete", $"The specified ID cannot be found : {req.Id}."));
             }
             Response.StatusCode = res.Code;
             return res;

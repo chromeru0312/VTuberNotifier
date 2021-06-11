@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using static VTuberNotifier.SettingData;
 
 namespace VTuberNotifier.Notification.Discord
 {
@@ -17,8 +15,8 @@ namespace VTuberNotifier.Notification.Discord
 
         private DiscordBot()
         {
-            DiscordClient.Log += Log;
-            DiscordClient.MessageReceived += CommandRecieved;
+            Settings.Data.DiscordClient.Log += Log;
+            Settings.Data.DiscordClient.MessageReceived += CommandRecieved;
             DataManager.CreateInstance();
 
             if (DataManager.Instance.TryDataLoad("AllDiscordList", out IEnumerable<string> list))
@@ -42,9 +40,8 @@ namespace VTuberNotifier.Notification.Discord
         {
             try
             {
-                await DiscordCmdService.AddModulesAsync(Assembly.GetEntryAssembly(), ServicePrivider);
-                await DiscordClient.LoginAsync(TokenType.Bot, DiscordToken);
-                await DiscordClient.StartAsync();
+                await Settings.Data.DiscordClient.LoginAsync(TokenType.Bot, Settings.Data.DiscordToken);
+                await Settings.Data.DiscordClient.StartAsync();
 
                 await Task.Delay(-1);
             }
@@ -61,17 +58,11 @@ namespace VTuberNotifier.Notification.Discord
 
             if (msg.HasCharPrefix('>', ref arg))
             {
-                var context = new CommandContext(DiscordClient, msg);
-                var result = await DiscordCmdService.ExecuteAsync(context, arg, ServicePrivider);
-                if (result.IsSuccess)
-                {
-                    await Log(new LogMessage(LogSeverity.Info, "Command", $"Command({msg}) is Success."));
-                }
-                else
-                {
-                    await Log(new LogMessage(LogSeverity.Warning, "Command",
-                        $"Command({msg}) is Error.\n{result.Error.Value}: {result.ErrorReason}"));
-                }
+                var context = new CommandContext(Settings.Data.DiscordClient, msg);
+                var result = await Settings.Data.DiscordCmdService.ExecuteAsync(context, arg, Settings.Data.ServicePrivider);
+                var log = result.IsSuccess ? $"Command({msg}) is Success."
+                    : $"Command({msg}) is Error.\n{result.Error.Value}: {result.ErrorReason}";
+                await Log(new(LogSeverity.Info, "Command", log));
             }
         }
 
@@ -97,7 +88,11 @@ namespace VTuberNotifier.Notification.Discord
             DataManager.Instance.DataSave("AllDiscordList", data, true);
         }
 
-        private Task Log(LogMessage msg) => LocalConsole.Log("Discord", msg);
+        private Task Log(LogMessage msg)
+        {
+            LocalConsole.Log("Discord", msg);
+            return Task.CompletedTask;
+        }
     }
     public class CmdBase : ModuleBase
     {

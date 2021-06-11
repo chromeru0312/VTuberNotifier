@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace VTuberNotifier
 {
@@ -22,8 +21,6 @@ namespace VTuberNotifier
                 { LogSeverity.Verbose, ConsoleColor.DarkCyan },
                 { LogSeverity.Debug, ConsoleColor.DarkGray },
             };
-        //private static Task WriteingTask { get; set; }
-        //private static Queue<Task> WriteingTasks { get; } = new();
 
         internal static void CreateNewLogFile()
         {
@@ -33,13 +30,13 @@ namespace VTuberNotifier
             ConsoleWriter = new ConsoleStream(Console.OpenStandardOutput(), new StreamWriter(path, true, Encoding.UTF8)) { AutoFlush = true };
             Console.SetOut(ConsoleWriter);
         }
-        public static Task Log<T>(T _, LogMessage msg) => Log(typeof(T).Name, msg);
 
-        public static async Task Log(string place, LogMessage msg)
+        public static void Log<T>(T _, LogMessage msg) => Log(typeof(T).Name, msg);
+        public static void Log(string place, LogMessage msg)
         {
-            await LogInner(place, msg);
+            LogInner(place, msg);
         }
-        private static Task LogInner(string place, LogMessage msg)
+        private static void LogInner(string place, LogMessage msg)
         {
             if (DefaultColor == null) DefaultColor = Console.ForegroundColor;
             var text = $"{DateTime.Now:HH:mm:ss.fff} {place}";
@@ -56,10 +53,7 @@ namespace VTuberNotifier
                 if (IsDebug)
                     message = ConsoleColor.DarkGray;
                 else
-                {
                     ConsoleWriter.FileStream.WriteLine($"{text}\n             [debug] {msg.Message}");
-                    return Task.CompletedTask;
-                }
             }
 
             Console.WriteLine(text);
@@ -75,7 +69,6 @@ namespace VTuberNotifier
             }
 
             Console.ForegroundColor = normal;
-            return Task.CompletedTask;
         }
 
         internal class ConsoleStream : StreamWriter
