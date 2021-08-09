@@ -47,21 +47,25 @@ namespace VTuberNotifier.Liver
             = new(60000, "voms", "VOMS",
                 hp: new("https://voms.net/", "https://voms.net/monsters/"), action: VomsMembers,
                 wiki: new("https://wikiwiki.jp/voms_project/"));
+        public static LiverGroupDetail Holostars { get; }
+            = new(70000, "holostarts", "ホロスターズ", Cover,
+                new("https://www.holostars.tv", "https://www.holostars.tv/member", false),
+                HolostarsMembers, "UCWsfcksUUpoEvhia0_ut0bA", "holostarstv",
+                new("https://seesaawiki.jp/holostarstv/", "d/", encode: true), true);
         public static LiverGroupDetail None { get; } = new(990000, "none", "None");
         public static IReadOnlyList<LiverGroupDetail> GroupList { get; }
-            = new List<LiverGroupDetail> { Nijiasnji, Hololive, Dotlive, VLive, V774inc, VOMS, None };
+            = new List<LiverGroupDetail> { Nijiasnji, Hololive, Dotlive, VLive, V774inc, VOMS, Holostars, None };
 
         private static async Task<HashSet<LiverDetail>> NijisanjiMembers(HtmlDocument _, HashSet<LiverDetail> set)
         {
             var str = await Settings.Data.HttpClient.GetStringAsync(GetUrl("moira"));
-            var livers = JObject.Parse(str)["pageProps"]["livers"];
-            var contents = livers["contents"].AsEnumerable();
-            var count = contents.Count();
+            var livers = JObject.Parse(str)["pageProps"]["livers"].AsEnumerable();
+            var count = livers.Count();
             if (count != set.Count)
             {
                 set = new();
                 var no = 10001;
-                foreach (var c in contents)
+                foreach (var c in livers)
                 {
                     var url = GetUrl(c["slug"].Value<string>());
                     var str_d = await Settings.Data.HttpClient.GetStringAsync(url);
@@ -81,20 +85,29 @@ namespace VTuberNotifier.Liver
 
             static string GetUrl(string name)
             {
-                return $"https://www.nijisanji.jp/_next/data/r4X4Eb75yATlGP4oRu4r4/members/{name}.json" +
-                    "?filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
+                return $"https://www.nijisanji.jp/_next/data/8MVMjiycXBBHZJSkK4HKv/ja/members/{name}.json" +
+                    $"?liverSlug={name}&filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
             }
         }
         private static async Task<HashSet<LiverDetail>> HololiveMembers(HtmlDocument _, HashSet<LiverDetail> set)
         {
-            var str = await Settings.Data.HttpClient.GetStringAsync("https://www.hololive.tv/r/v1/sites/11822129/portfolio/categories/47579/products?per=1000");
+            return await HoloMembers(Hololive, 47579, "/div/p/a", set);
+        }
+        private static async Task<HashSet<LiverDetail>> HolostarsMembers(HtmlDocument _, HashSet<LiverDetail> set)
+        {
+            return await HoloMembers(Holostars, 47580, "/a", set);
+        }
+        private static async Task<HashSet<LiverDetail>> HoloMembers(LiverGroupDetail group, int json_id, string xpath, HashSet<LiverDetail> set)
+        {
+            var str = await Settings.Data.HttpClient.GetStringAsync(
+                $"https://www.hololive.tv/r/v1/sites/11822129/portfolio/categories/{json_id}/products?per=1000");
             var json = JObject.Parse(str);
             var data = json["data"];
             var count = data["paginationMeta"]["totalCount"].Value<int>();
             if (count != set.Count)
             {
                 set = new();
-                var no = 20001;
+                var no = group.Id + 1;
                 foreach (var liver in data["products"].AsEnumerable())
                 {
                     var name = liver["name"].Value<string>();
@@ -106,19 +119,22 @@ namespace VTuberNotifier.Liver
                     doc.LoadHtml(html);
 
                     string twitter = null;
-                    var txt = "//html/body/div[@id='s-page-container']/div/div/div/div/div/div/div/div/div/div/div/div/div/div/div/div/p/a";
+                    var txt = $"//html/body/div[@id='s-page-container']/div/div/div/div/div/div/div/div/div/div/div/div/div/div/div{xpath}";
                     var col = doc.DocumentNode.SelectNodes(txt);
-                    foreach (var n in col)
+                    if (col != null)
                     {
-                        var link = n.Attributes["href"].Value;
-                        if (link.StartsWith("https://twitter.com/"))
+                        foreach (var n in col)
                         {
-                            twitter = link;
-                            break;
+                            var link = n.Attributes["href"].Value;
+                            if (link.StartsWith("https://twitter.com/"))
+                            {
+                                twitter = link;
+                                break;
+                            }
                         }
                     }
-                    set.Add(new(no, Hololive, name, youtube, twitter));
-                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, "Hololive", $"Complete inspect liver {no - 20000}/{count} : {name}"));
+                    set.Add(new(no, group, name, youtube, twitter));
+                    LocalConsole.Log("MemberLoader", new(LogSeverity.Info, group.GroupId, $"Complete inspect liver {no - group.Id}/{count} : {name}"));
                     no++;
                 }
             }
@@ -344,13 +360,7 @@ namespace VTuberNotifier.Liver
                 if (set == null) set = new();
                 s = await MemberLoadAction.Invoke(doc, set);
                 foreach (var liver in s)
-                {
-                    if (liver.YouTubeId == null) continue;
-                    var req = Settings.Data.YouTubeService.Channels.List("snippet");
-                    req.Id = liver.YouTubeId;
-                    var res = await req.ExecuteAsync();
-                    liver.SetChannelName(res.Items[0].Snippet.Title);
-                }
+                    await liver.SetAutoChannelName();
                 LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, $"Finish Loading Members."));
             }
             catch (Exception e)
