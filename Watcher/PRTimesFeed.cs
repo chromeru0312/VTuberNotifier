@@ -9,13 +9,16 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using VTuberNotifier.Notification;
 using VTuberNotifier.Liver;
+using System.Net.Http;
+using System.Net;
 
-namespace VTuberNotifier.Watcher.Feed
+namespace VTuberNotifier.Watcher
 {
     public class PRTimesFeed
     {
         public static PRTimesFeed Instance { get; private set; }
         public IReadOnlyDictionary<LiverGroupDetail, IReadOnlyList<PRTimesArticle>> FoundArticles { get; private set; }
+        private DateTime SkippingDate { get; set; }
 
         private PRTimesFeed()
         {
@@ -28,6 +31,7 @@ namespace VTuberNotifier.Watcher.Feed
                 else dic.Add(group, new List<PRTimesArticle>());
             }
             FoundArticles = dic;
+            SkippingDate = DateTime.MinValue;
         }
         public static void CreateInstance()
         {
@@ -38,11 +42,28 @@ namespace VTuberNotifier.Watcher.Feed
         public async Task<List<PRTimesArticle>> ReadFeed(LiverGroupDetail group)
         {
             var list = new List<PRTimesArticle>();
-            if (group.ProducedCompany == null) return list;
+            if (group.ProducedCompany == null || SkippingDate > DateTime.Now)
+                return list;
             var id = group.ProducedCompany.Id;
             LocalConsole.Log(this, new LogMessage(LogSeverity.Debug, "NewArticle", $"Start task. [company:{group.GroupId}]"));
 
-            XDocument xml = XDocument.Load($"https://prtimes.jp/companyrdf.php?company_id={id}");
+            XDocument xml;
+            try
+            {
+                xml = XDocument.Load($"https://prtimes.jp/companyrdf.php?company_id={id}");
+            }
+            catch (HttpRequestException e)
+            {
+                if (e.StatusCode == HttpStatusCode.ServiceUnavailable)
+                {
+                    SkippingDate = DateTime.Now.AddMinutes(55);
+                    LocalConsole.Log(this, new LogMessage(LogSeverity.Warning, "NewArticle",
+                        "PRTimes service is currently temporarily unavailable."));
+                    return list;
+                }
+                throw;
+            }
+            catch { throw; }
             XNamespace ns = xml.Root.Attribute("xmlns").Value;
             var articles = new List<XElement>(xml.Root.Elements(ns + "item"));
             for (int i = 0; i < articles.Count; i++)
@@ -57,10 +78,12 @@ namespace VTuberNotifier.Watcher.Feed
                 string html = await Settings.Data.HttpClient.GetStringAsync(link);
                 doc.LoadHtml(html);
                 var text = "//html/body/div[@class='container container-content']/main/div[@class='content']/article/div";
-                var content = doc.DocumentNode.SelectSingleNode(text + "/div").InnerText.Trim();
+                var cnode = doc.DocumentNode.SelectSingleNode(text + "/div");
+                var content = cnode.InnerText.Trim();
+                var links = cnode.SelectNodes("./div/div/a")?.Select(n => n.Attributes["href"].Value);
                 var datetxt = text + "/header/div[@class='information-release']/time";
                 var date = DateTime.Parse(doc.DocumentNode.SelectSingleNode(datetxt).Attributes["datetime"].Value.Trim(), Settings.Data.Culture);
-                list.Add(new(aid, group, title, link, date, content));
+                list.Add(new(aid, group, link, title, content, links ?? new List<string>(), date));
             }
             if (list.Count > 0)
             {
@@ -82,6 +105,7 @@ namespace VTuberNotifier.Watcher.Feed
         public LiverGroupDetail Group { get; }
         public string Title { get; }
         public string Url { get; }
+        public TextContent Content { get; }
         public DateTime Update { get; }
         public IReadOnlyList<LiverDetail> Livers { get; }
 
@@ -101,14 +125,17 @@ namespace VTuberNotifier.Watcher.Feed
         public IReadOnlyDictionary<string, Func<LiverDetail, IEnumerable<string>>> ContentFormatEnumeratorFunc
             => new Dictionary<string, Func<LiverDetail, IEnumerable<string>>>();
 
-        public PRTimesArticle(uint id, LiverGroupDetail group, string title, string url, DateTime update, string content)
-            : this(id, group, title, url, update, DetectLiver(group, content)) { }
-        private PRTimesArticle(uint id, LiverGroupDetail group, string title, string url, DateTime update, List<LiverDetail> livers)
+        public PRTimesArticle(uint id, LiverGroupDetail group, string url, string title, string content,
+            IEnumerable<string> links, DateTime? update = null)
+            : this(id, group, url, title, new(content, links), update ?? DateTime.Now, DetectLiver(group, content)) { }
+        private PRTimesArticle(uint id, LiverGroupDetail group,
+            string url, string title, TextContent content, DateTime update, List<LiverDetail> livers)
         {
             Id = id;
             Group = group;
-            Title = title;
             Url = url;
+            Title = title;
+            Content = content;
             Update = update;
             Livers = livers;
         }
@@ -154,31 +181,19 @@ namespace VTuberNotifier.Watcher.Feed
         {
             public override PRTimesArticle Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                reader.Read();
-                reader.Read();
-                var id = reader.GetUInt32();
-                reader.Read();
-                reader.Read();
-                var gid = reader.GetString();
+                var id = reader.GetNextValue<uint>(options);
+                var gid = reader.GetNextValue<string>(options);
                 var group = LiverGroup.GroupList.FirstOrDefault(g => g.GroupId == gid);
-                reader.Read();
-                reader.Read();
-                var title = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var url = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var update = DateTime.Parse(reader.GetString());
-                reader.Read();
-                reader.Read();
-                var livers = JsonSerializer.Deserialize<List<LiverDetail>>(ref reader, options);
+                var url = reader.GetNextValue<string>(options);
+                var title = reader.GetNextValue<string>(options);
+                var content = reader.GetNextValue<TextContent>(options);
+                var update = reader.GetNextValue<DateTime>(options);
+                var livers = reader.GetNextValue<List<LiverDetail>>(options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(id, group, title, url, update, livers);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(id, group, title, url, content, update, livers);
             }
 
             public override void Write(Utf8JsonWriter writer, PRTimesArticle value, JsonSerializerOptions options)
@@ -187,11 +202,11 @@ namespace VTuberNotifier.Watcher.Feed
 
                 writer.WriteNumber("Id", value.Id);
                 writer.WriteString("Group", value.Group.GroupId);
-                writer.WriteString("Title", value.Title);
                 writer.WriteString("Url", value.Url);
+                writer.WriteString("Title", value.Title);
+                writer.WriteValue("Content", value.Content, options);
                 writer.WriteString("Update", value.Update.ToString("G"));
-                writer.WritePropertyName("Livers");
-                JsonSerializer.Serialize(writer, value.Livers, options);
+                writer.WriteValue("Livers", value.Livers, options);
 
                 writer.WriteEndObject();
             }
