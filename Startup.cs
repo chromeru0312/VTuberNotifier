@@ -10,7 +10,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
+using System.Threading.Tasks;
+using VTuberNotifier.Notification;
+using VTuberNotifier.Notification.Discord;
 using VTuberNotifier.Watcher;
+using VTuberNotifier.Watcher.Store;
 
 namespace VTuberNotifier
 {
@@ -18,6 +22,7 @@ namespace VTuberNotifier
     {
         public static void Main(string[] args)
         {
+            Settings.LoadSettingData();
             LocalConsole.CreateNewLogFile();
             CreateHostBuilder(args).Build().Run();
         }
@@ -46,6 +51,7 @@ namespace VTuberNotifier
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+            services.AddSwaggerGen();
 
             services.Configure<ForwardedHeadersOptions>(options =>
             {
@@ -53,8 +59,14 @@ namespace VTuberNotifier
             });
         }
 
-        public void Configure(IApplicationBuilder app, IHostApplicationLifetime lifetime, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, ILoggerFactory loggerFactory)
         {
+            if (env.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "VTuberNotifier v1"));
+            }
+
             loggerFactory.AddProvider(new ConsoleLoggerProvider());
 
             app.UseHttpsRedirection();
@@ -78,7 +90,31 @@ namespace VTuberNotifier
         private void OnStarted()
         {
             DataManager.CreateInstance();
-            WatcherTask.CreateInstance();
+            TimerManager.CreateInstance();
+
+            NijisanjiWatcher.CreateInstance();
+            DotliveWatcher.CreateInstance();
+            NijisanjiWatcher.LoadList();
+            DotliveWatcher.LoadList();
+            TimerManager.Instance.AddAction(20 * 60, WatcherTask.NijisanjiStoreTask);
+            TimerManager.Instance.AddAction(20 * 60, WatcherTask.DotliveStoreTask);
+
+            BoothWatcher.CreateInstance();
+            TimerManager.Instance.AddAction(20 * 60, WatcherTask.BoothTask);
+
+            PRTimesFeed.CreateInstance();
+            TimerManager.Instance.AddAction(20 * 60, WatcherTask.PRTimesTask, 300);
+
+            YouTubeWatcher.CreateInstance();
+            TimerManager.Instance.AddAction(60, WatcherTask.YouTubeChangeTask);
+
+            //TwitterWatcher.CreateInstance();
+            //TimerManager.Instance.AddAction(60, WatcherTask.TwitterTask);
+
+            EventNotifier.CreateInstance();
+            //Task.Run(WatcherTask.YouTubeNotificationTask);
+            DiscordBot.CreateInstance();
+            Task.Run(DiscordBot.Instance.BotStart);
         }
         private void OnStopped()
         {
