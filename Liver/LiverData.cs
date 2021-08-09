@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using VTuberNotifier.Notification;
 
 namespace VTuberNotifier.Liver
 {
@@ -16,8 +15,18 @@ namespace VTuberNotifier.Liver
         internal async static Task UpdateLivers()
         {
             var olddic = LiversSeparateGroup;
-            var newdic = await InspectLivers();
-            if (olddic != newdic)
+            var newdic = new Dictionary<LiverGroupDetail, HashSet<LiverDetail>>();
+            var tasks = new Dictionary<LiverGroupDetail, Task<HashSet<LiverDetail>>>();
+
+            foreach (var group in LiverGroup.GroupList)
+            {
+                if (DataManager.Instance.TryDataLoad($"liver/{group.GroupId}", out HashSet<LiverDetail> livers))
+                    tasks.Add(group, group.LoadMembers(livers));
+                else tasks.Add(group, group.LoadMembers(null));
+            }
+            foreach (var (group, task) in tasks) newdic.Add(group, await task);
+
+            if (!olddic.SequenceEqual(newdic))
             {
                 await SaveLivers();
                 Livers = null;
@@ -33,33 +42,17 @@ namespace VTuberNotifier.Liver
             foreach (var group in LiverGroup.GroupList)
             {
                 if (DataManager.Instance.TryDataLoad($"liver/{group.GroupId}", out HashSet<LiverDetail> livers))
-                    LiversSeparateGroup.Add(group, livers);
+                    LiversSeparateGroup.Add(group, livers ?? new());
                 else tasks.Add(group, group.LoadMembers(null));
             }
-            foreach (var (group, task) in tasks) LiversSeparateGroup.Add(group, await task);
+            foreach (var (group, task) in tasks) LiversSeparateGroup.Add(group, await task ?? new());
             await SaveLivers();
-            NotifyEvent.LoadChannelList();
         }
 
         private static async Task SaveLivers()
         {
             foreach (var (group, set) in LiversSeparateGroup)
                 await DataManager.Instance.DataSaveAsync($"liver/{group.GroupId}", set, true);
-        }
-
-        private static async Task<Dictionary<LiverGroupDetail, HashSet<LiverDetail>>> InspectLivers(List<LiverGroupDetail> list = null)
-        {
-            if(list == null) list = new(LiverGroup.GroupList);
-            var dic = new Dictionary<LiverGroupDetail, HashSet<LiverDetail>>();
-            var tasks = new Dictionary<LiverGroupDetail, Task<HashSet<LiverDetail>>>();
-
-            foreach (var group in list)
-            {
-                HashSet<LiverDetail> set = LiversSeparateGroup.ContainsKey(group) ? LiversSeparateGroup[group] : null;
-                tasks.Add(group, group.LoadMembers(set));
-            }
-            foreach (var (group, task) in tasks) dic.Add(group, await task);
-            return dic;
         }
 
         public static HashSet<LiverDetail> GetLiversList(LiverGroupDetail group)
@@ -79,7 +72,12 @@ namespace VTuberNotifier.Liver
             return Livers;
         }
 
-        public static List<LiverDetail> GetLiverFromName(string name, LiverGroupDetail group = null)
+        public static LiverDetail GetLiverFromId(int id, LiverGroupDetail group = null)
+        {
+            var list = group == null ? GetAllLiversList() : GetLiversList(group);
+            return list.FirstOrDefault(l => l.Id == id);
+        }
+        public static List<LiverDetail> GetLiversFromName(string name, LiverGroupDetail group = null)
         {
             var list = group == null ? GetAllLiversList() : GetLiversList(group);
             return new List<LiverDetail>(list.Where(l => l.Name.Contains(name) || l.ChannelName.Contains(name)));
@@ -119,17 +117,16 @@ namespace VTuberNotifier.Liver
 
         internal static async Task<int> AddLiver(string group_str, string name, string youtube, string twitter)
         {
-            var set = GetAllLiversList();
             var group = LiverGroup.GroupList.FirstOrDefault(g => g.GroupId == group_str);
             if (group == null) return 404;
             if (group.IsAutoLoad) return 403;
-            var id = set.Count == 0 ? group.Id + 1 : set.Max(c => c.Id) + 1;
-            var liver = new LiverDetail(id, group, name, youtube, twitter);
-            var b = set.Add(liver);
-            if (b)
+            var id = LiversSeparateGroup[group].Max(l => l.Id) + 1;
+            var liver = new LiverDetail(id == 1 ? group.Id + 1 : id, group, name, youtube, twitter);
+            if (LiversSeparateGroup[group].FirstOrDefault(l => l.YouTubeId == youtube) == null)
             {
-                Livers = set;
-                LiversSeparateGroup[liver.Group].Add(liver);
+                await liver.SetAutoChannelName();
+                Livers.Add(liver);
+                LiversSeparateGroup[group].Add(liver);
                 await SaveLivers();
                 return 201;
             }
@@ -156,7 +153,7 @@ namespace VTuberNotifier.Liver
         }
         internal static async Task<int> DeleteLiver(int id)
         {
-            var liver = GetAllLiversList().FirstOrDefault(c => c.Id == id);
+            var liver = GetLiverFromId(id);
             if (liver == null) return 404;
             if (liver.Group.IsAutoLoad) return 403;
             Livers.Remove(liver);
@@ -185,36 +182,35 @@ namespace VTuberNotifier.Liver
         {
             ChannelName = name;
         }
+        internal async Task SetAutoChannelName()
+        {
+            if (YouTubeId == null) return;
+            try
+            {
+                var req = Settings.Data.YouTubeService.Channels.List("snippet");
+                req.Id = YouTubeId;
+                var res = await req.ExecuteAsync();
+                SetChannelName(res.Items[0].Snippet.Title);
+            }
+            catch { }
+        }
 
         public class LiverDetailConverter : JsonConverter<LiverDetail>
         {
             public override LiverDetail Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                reader.Read();
-                reader.Read();
-                var id = reader.GetInt32();
-                reader.Read();
-                reader.Read();
-                var name = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var gid = reader.GetInt32();
+                var id = reader.GetNextValue<int>(options);
+                var name = reader.GetNextValue<string>(options);
+                var gid = reader.GetNextValue<int>(options);
                 var group = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid * 10000);
-                reader.Read();
-                reader.Read();
-                var ytid = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var chname = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var twid = reader.GetString();
+                var ytid = reader.GetNextValue<string>(options);
+                var chname = reader.GetNextValue<string>(options);
+                var twid = reader.GetNextValue<string>(options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(id, group, name, ytid, twid, chname);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(id, group, name, ytid, twid, chname);
             }
 
             public override void Write(Utf8JsonWriter writer, LiverDetail value, JsonSerializerOptions options)
