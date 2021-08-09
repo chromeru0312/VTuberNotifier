@@ -72,7 +72,7 @@ namespace VTuberNotifier
         }
         public void AddEventAlarm<T>(DateTime dt, EventBase<T> evt) where T : INotificationContent
         {
-            AddAlarm(dt, new(() => NotifyEvent.Notify(evt)));
+            AddAlarm(dt, new(() => EventNotifier.Instance.Notify(evt)));
         }
         public void RemoveAlarm(DateTime dt, Func<Task> action)
         {
@@ -83,7 +83,7 @@ namespace VTuberNotifier
         }
         public void RemoveEventAlarm<T>(DateTime dt, EventBase<T> evt) where T : INotificationContent
         {
-            RemoveAlarm(dt, new(() => NotifyEvent.Notify(evt)));
+            RemoveAlarm(dt, new(() => EventNotifier.Instance.Notify(evt)));
         }
 
         private async void TimerTask(object sender, ElapsedEventArgs e)
@@ -108,9 +108,8 @@ namespace VTuberNotifier
                 {
                     TimerCount = 1;
                     TimerReset = DateTime.Today.AddDays(1);
-                    LocalConsole.Log(this, new (LogSeverity.Info, "Task", "Reset TimerCount."));
-                    await WatcherTask.Instance.OneDayTask();
-                    LocalConsole.Log(this, new (LogSeverity.Info, "Task", "Finished daily task."));
+                    await WatcherTask.OnedayTask();
+                    LocalConsole.Log(this, new(LogSeverity.Info, "Task", "Reset TimerCount."));
                 }
                 foreach (var task in list) await task;
             }

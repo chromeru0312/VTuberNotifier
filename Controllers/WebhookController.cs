@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.NetworkInformation;
-using System.Threading.Tasks;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Notification;
 
@@ -24,7 +23,7 @@ namespace VTuberNotifier.Controllers
                     var reply = ping.Send(url);
                     if (reply.Status == IPStatus.Success)
                     {
-                        NotifyEvent.AddWebhookList(liver, dest);
+                        EventNotifier.Instance.AddWebhookList(liver, dest);
                         LocalConsole.Log("WebhookCtl", new LogMessage(LogSeverity.Info, "Add", "Add webhook."));
                         return res;
                     }
@@ -44,7 +43,7 @@ namespace VTuberNotifier.Controllers
             var res = GetRequestData(req, out var liver, out var dest);
             if (res.IsSuccess) 
             {
-                NotifyEvent.UpdateWebhookList(liver, dest);
+                EventNotifier.Instance.UpdateWebhookList(liver, dest);
                 LocalConsole.Log("WebhookCtl", new LogMessage(LogSeverity.Info, "Update", "Update webhook."));
             }
             else LocalConsole.Log("WebhookCtl", new LogMessage(LogSeverity.Warning, "Update", "Failed to update webhook."));
@@ -58,7 +57,7 @@ namespace VTuberNotifier.Controllers
             var res = GetRequestData(req, out var liver, out var dest);
             if (res.IsSuccess)
             {
-                NotifyEvent.RemoveWebhookList(liver, dest);
+                EventNotifier.Instance.RemoveWebhookList(liver, dest);
                 LocalConsole.Log("WebhookCtl", new LogMessage(LogSeverity.Info, "Remove", "Remove webhook."));
             }
             else LocalConsole.Log("WebhookCtl", new LogMessage(LogSeverity.Warning, "Remove", "Failed to remove webhook."));
@@ -66,13 +65,14 @@ namespace VTuberNotifier.Controllers
             return res;
         }
 
+        [NonAction]
         private static ApiResponse GetRequestData(WebhookRequest req, out LiverDetail liver, out WebhookDestination dest)
         {
             dest = new WebhookDestination(req.Url);
             if (!LiverData.DetectLiver(req.Liver, out liver)) return new(404, "The specified river cannot be found.");
             foreach (var content in req.Services)
             {
-                if (!NotifyEvent.DetectType(liver, out var type, content.Service)) return new(404, "This service is not supported/found.");
+                if (!EventNotifier.Instance.DetectType(liver, out var type, content.Service)) return new(404, "This service is not supported/found.");
                 dest.AddContent(type, content.Only, content.Content);
             }
             return new ApiResponse(200, "OK.");

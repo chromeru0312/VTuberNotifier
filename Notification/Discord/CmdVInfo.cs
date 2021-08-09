@@ -9,7 +9,7 @@ namespace VTuberNotifier.Notification.Discord
     public class CmdVInfo : CmdBase
     {
         [Command("vinfo add")]
-        public async Task AddNotify(string liver, string services, bool only = true)
+        public async Task AddNotify(string liver, string services, bool only = true, bool edit = false)
         {
             if (await IsArgumentNullOrEmpty(3, liver) || await IsArgumentNullOrEmpty(4, services))
                 return;
@@ -19,15 +19,15 @@ namespace VTuberNotifier.Notification.Discord
                 await SendError(this, 3, "The specified river cannot be found.");
                 return;
             }
-            var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id);
-            if (!NotifyEvent.DetectTypes(detail, out var types, services.Split(',')))
+            var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id, edit);
+            if (!EventNotifier.Instance.DetectTypes(detail, out var types, services.Split(',')))
             {
                 await SendError(this, 4, "This service is not supported/found.");
                 return;
             }
             foreach (var t in types) ch.AddContent(t, only);
 
-            if (NotifyEvent.AddDiscordList(detail, ch))
+            if (EventNotifier.Instance.AddDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Add", "Add new service."));
@@ -55,14 +55,14 @@ namespace VTuberNotifier.Notification.Discord
                 return;
             }
             var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id);
-            if (!NotifyEvent.DetectType(detail, out var type, service))
+            if (!EventNotifier.Instance.DetectType(detail, out var type, service))
             {
                 await SendError(this, 4, "This service is not supported/found.");
                 return;
             }
             ch.SetContent(type, only, content);
 
-            if (NotifyEvent.UpdateDiscordList(detail, ch))
+            if (EventNotifier.Instance.UpdateDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Update", "Update service."));
@@ -89,7 +89,7 @@ namespace VTuberNotifier.Notification.Discord
             var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id);
             if (!string.IsNullOrEmpty(services))
             {
-                if (!NotifyEvent.DetectTypes(detail, out var types, services.Split(',')))
+                if (!EventNotifier.Instance.DetectTypes(detail, out var types, services.Split(',')))
                 {
                     await SendError(this, 4, "This service is not supported/found.");
                     return;
@@ -98,12 +98,12 @@ namespace VTuberNotifier.Notification.Discord
                 rem = ch.MsgContentList.Count == 0;
             }
             else rem = true;
-            if (!rem && NotifyEvent.UpdateDiscordList(detail, ch))
+            if (!rem && EventNotifier.Instance.UpdateDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Remove", "Update service."));
             }
-            else if (rem && NotifyEvent.RemoveDiscordList(detail, ch))
+            else if (rem && EventNotifier.Instance.RemoveDiscordList(detail, ch))
             {
                 await ReplyAsync("Success.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Remove", "Remove service."));
