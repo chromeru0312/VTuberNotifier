@@ -22,12 +22,10 @@ namespace VTuberNotifier.Liver
 
         internal static async Task<int> AddLiveChannel(string name, string youtube, string twitter)
         {
-            var set = GetLiveChannelList();
-            var id = set.Count == 0 ? 1000001 : set.Max(c => c.Id) + 1;
-            var b = set.Add(new(id, name, youtube, twitter));
-            if (b)
+            if (LiverChannels.FirstOrDefault(l => l.YouTubeId == youtube) == null)
             {
-                LiverChannels = set;
+                var id = LiverChannels.Max(l => l.Id) + 1;
+                LiverChannels.Add(new(id == 1 ? 10000001 : id, name, youtube, twitter));
                 await DataManager.Instance.DataSaveAsync("youtube/LiveChannelList", LiverChannels, true);
                 return 201;
             }
@@ -77,24 +75,15 @@ namespace VTuberNotifier.Liver
         {
             public override LiveChannelDetail Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                reader.Read();
-                reader.Read();
-                var id = reader.GetInt32();
-                reader.Read();
-                reader.Read();
-                var name = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var ytid = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var twid = reader.GetString();
+                var id = reader.GetNextValue<int>(options);
+                var name = reader.GetNextValue<string>(options);
+                var ytid = reader.GetNextValue<string>(options);
+                var twid = reader.GetNextValue<string>(options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(id, name, ytid, twid);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(id, name, ytid, twid);
             }
 
             public override void Write(Utf8JsonWriter writer, LiveChannelDetail value, JsonSerializerOptions options)
