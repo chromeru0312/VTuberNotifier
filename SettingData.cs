@@ -8,8 +8,10 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using static System.Net.SecurityProtocolType;
 
 namespace VTuberNotifier
 {
@@ -17,6 +19,7 @@ namespace VTuberNotifier
     {
         public static Settings Data { get; private set; }
 
+        public string ExecutingPath { get; }
         public int WebPort { get; }
         public YouTubeService YouTubeService { get; }
         public string NotificationCallback { get; }
@@ -30,7 +33,8 @@ namespace VTuberNotifier
 
         private Settings()
         {
-            var path = Path.Combine(Path.GetFullPath(@"./"), "Authentication.json");
+            ExecutingPath = Path.GetDirectoryName(AppContext.BaseDirectory);
+            var path = Path.Combine(ExecutingPath, "Authentication.json");
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
             using var reader = new StreamReader(stream);
             var json = JObject.Parse(reader.ReadToEnd());
@@ -46,7 +50,9 @@ namespace VTuberNotifier
             DiscordCmdService.AddModulesAsync(Assembly.GetEntryAssembly(), ServicePrivider).Wait();
             ServicePrivider = new ServiceCollection().BuildServiceProvider();
 
-            HttpClient = new();
+            HttpClient = new(new HttpClientHandler { AllowAutoRedirect = true });
+            HttpClient.DefaultRequestHeaders.UserAgent.Add(new("VInfoNotifier", "1.0"));
+            ServicePointManager.SecurityProtocol = Tls | Tls12 | Tls11 | Tls13;
             Culture = new("ja-JP");
         }
         public static void LoadSettingData()
