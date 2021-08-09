@@ -23,11 +23,9 @@ namespace VTuberNotifier.Watcher.Store
             return res;
         }
 
-        public static List<string> ReadTags(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+        public static List<string> ReadTags(ref Utf8JsonReader reader, JsonSerializerOptions options)
         {
-            reader.Read();
-            reader.Read();
-            var tags = JsonSerializer.Deserialize<List<string>>(ref reader, options);
+            var tags = reader.GetNextValue<List<string>>(options);
             return tags;
         }
         protected private void WriteTags(Utf8JsonWriter writer, JsonSerializerOptions options)
@@ -36,8 +34,7 @@ namespace VTuberNotifier.Watcher.Store
         }
         public static void WriteTags(Utf8JsonWriter writer, IProductTag value, JsonSerializerOptions options)
         {
-            writer.WritePropertyName("Tags");
-            JsonSerializer.Serialize(writer, value.Tags, options);
+            writer.WriteValue("Tags", value.Tags, options);
         }
     }
 }
