@@ -5,7 +5,8 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using VTuberNotifier.Notification;
-using VTuberNotifier.Watcher.Feed;
+using VTuberNotifier.Watcher;
+using VTuberNotifier.Watcher.Event;
 
 namespace VTuberNotifier.Controllers
 {
@@ -14,30 +15,33 @@ namespace VTuberNotifier.Controllers
     public class YouTubeController : ControllerBase
     {
         [HttpGet]
-        [HttpPost]
-        public async Task<IActionResult> NotificationCallback()
+        public IActionResult RegistNotification()
         {
             var b = Request.Query.TryGetValue("hub.challenge", out var value);
             if (b)
             {
                 var s = value.ToString();
-                LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "GET", $"Accept registration. [{s}]"));
+                LocalConsole.Log("YouTubeCtl", new(LogSeverity.Debug, "GET", $"Accept registration. [{s}]"));
                 return Ok(s);
             }
-            else
-            {
-                if (TimerManager.Instance?.TimerCount > 0)
-                {
-                    var sr = new StreamReader(Request.Body);
-                    var xml = await sr.ReadToEndAsync();
-                    LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
-                    if (!string.IsNullOrEmpty(xml)) await ReadFeed(xml);
-                }
-                return Ok();
-            }
+            return NoContent();
         }
 
-        public async Task ReadFeed(string xml)
+        [HttpPost]
+        public async Task<IActionResult> NotificationCallback()
+        {
+            if (TimerManager.Instance?.TimerCount > 0)
+            {
+                using var sr = new StreamReader(Request.Body);
+                var xml = await sr.ReadToEndAsync();
+                LocalConsole.Log("YouTubeCtl", new(LogSeverity.Info, "POST", "Recieved xml."));
+                if (!string.IsNullOrEmpty(xml)) await ReadFeed(xml, DateTime.Now);
+            }
+            return Ok();
+        }
+
+        [NonAction]
+        public async Task ReadFeed(string xml, DateTime dt)
         {
             var doc = XDocument.Parse(xml);
             XNamespace xmlns = doc.Root.Attribute("xmlns").Value;
@@ -47,10 +51,13 @@ namespace VTuberNotifier.Controllers
             var entry = doc.Root.Element(xmlns + "entry");
             var id = entry.Element(ns + "videoId").Value.Trim();
 
-            var evt = YouTubeFeed.Instance.CheckNewLive(id, out var video);
-            var type = evt == null ? "None" : evt.GetType().Name[7..^5];
-            await DataManager.Instance.StringSaveAsync($"xml/{DateTime.Today:yyyyMMdd}/{id}[{type}]", ".xml", xml);
-            if (evt != null) await NotifyEvent.Notify(evt);
+            var file = $"xml/{dt:yyyyMMdd/HHmmss}_{id}";
+            if (YouTubeWatcher.Instance.CheckNewLive(id, out var item))
+            {
+                file += "(new)";
+                await EventNotifier.Instance.Notify(YouTubeNewEvent.CreateEvent(item));
+            }
+            await DataManager.Instance.StringSaveAsync(file, ".xml", xml);
         }
     }
 }
