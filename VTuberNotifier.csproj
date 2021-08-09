@@ -1,15 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
+    <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
     <TargetFramework>net5.0</TargetFramework>
     <UserSecretsId>157ccde4-6643-48b7-93e2-5b21382fec6e</UserSecretsId>
     <StartupObject>VTuberNotifier.ServerStart</StartupObject>
     <Authors>chromeru0312</Authors>
-    <Company />
     <Product>VInfoNotifier</Product>
     <PackageIcon>icon.jpg</PackageIcon>
     <RepositoryUrl>https://github.com/chromeru0312/VTuberNotifier</RepositoryUrl>
-    <Version>1.0.5</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,11 +26,11 @@
   <ItemGroup>
     <PackageReference Include="CoreTweet" Version="1.0.0.483" />
     <PackageReference Include="Discord.Net" Version="2.4.0" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.51.0.2343" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.53.0.2378" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.34" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.7" NoWarn="NU1605" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.7" NoWarn="NU1605" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.1.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.8" NoWarn="NU1605" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="5.0.8" NoWarn="NU1605" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.1.5" />
   </ItemGroup>
 
 </Project>
