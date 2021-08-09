@@ -60,27 +60,27 @@ namespace VTuberNotifier.Notification
 
         public abstract class NotificationAddressConverter<T> : JsonConverter<T>
         {
-            protected private static Dictionary<Type, string> ReadBase(ref Utf8JsonReader reader)
+            protected private static Dictionary<Type, string> ReadBase(ref Utf8JsonReader reader, JsonSerializerOptions options)
             {
-                reader.Read();
-                reader.Read();
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
                 var dic = new Dictionary<Type, string>();
+                reader.Read();
+                reader.CheckStartToken();
                 while (true)
                 {
-                    reader.Read();
-                    if (reader.TokenType == JsonTokenType.EndObject) break;
-                    var t = Type.GetType(reader.GetString());
-                    reader.Read();
-                    dic.Add(t, reader.GetString());
+                    var (p, v) = reader.GetNextValueAndPropartyName<string>(options);
+                    dic.Add(Type.GetType(p), v);
+
+                    if (reader.IsEndToken()) break;
                 }
+                reader.Read();
                 return dic;
             }
 
             protected private static void WriteBase(Utf8JsonWriter writer, NotificationAddress value)
             {
                 writer.WriteStartObject("Content");
-                foreach (var (type, content) in value.MsgContentList) writer.WriteString(type.FullName, content);
+                foreach (var (type, content) in value.MsgContentList)
+                    writer.WriteString(type.FullName, content);
                 writer.WriteEndObject();
             }
         }

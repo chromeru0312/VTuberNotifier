@@ -34,16 +34,13 @@ namespace VTuberNotifier.Notification
         {
             public override WebhookDestination Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                reader.Read();
-                reader.Read();
-                var url = reader.GetString();
-                var dic = ReadBase(ref reader);
+                var url = reader.GetNextValue<string>(options);
+                var dic = ReadBase(ref reader, options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(url, dic);
-                throw new JsonException();
+                reader.CheckEndToken(); 
+                return new(url, dic);
             }
 
             public override void Write(Utf8JsonWriter writer, WebhookDestination value, JsonSerializerOptions options)
