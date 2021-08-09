@@ -1,7 +1,6 @@
 ﻿using Discord;
 using System;
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -14,9 +13,7 @@ namespace VTuberNotifier
 
         private DataManager()
         {
-            string path = Assembly.GetEntryAssembly().Location;
-            var dir = Path.GetDirectoryName(path);
-            DataPath = Path.Combine(dir, "data");
+            DataPath = Path.Combine(Settings.Data.ExecutingPath, "data");
             if (!Directory.Exists(DataPath)) Directory.CreateDirectory(DataPath);
         }
         public static void CreateInstance()
@@ -99,14 +96,15 @@ namespace VTuberNotifier
         {
             if (LoadBase(id, out var str))
             {
-                obj = JsonSerializer.Deserialize<T>(str, options);
-                return true;
+                try
+                {
+                    obj = JsonSerializer.Deserialize<T>(str, options);
+                    return true;
+                }
+                catch { }
             }
-            else
-            {
-                obj = default;
-                return false;
-            }
+            obj = default;
+            return false;
         }
         private bool LoadBase(string id, out string obj)
         {
