@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using VTuberNotifier.Notification;
@@ -9,10 +8,13 @@ using VTuberNotifier.Liver;
 
 namespace VTuberNotifier.Watcher.Event
 {
-    public abstract class EventBase<T> : IEventBase where T : INotificationContent
+    [JsonConverter(typeof(EventConverter))]
+    public abstract class EventBase<T> where T : INotificationContent
     {
-        public string EventTypeName { get; }
+        public abstract string EventTypeName { get; }
         public T Item { get; }
+        public T OldItem { get; }
+        public IReadOnlyDictionary<LiverDetail, EventBase<T>[]> EventsByLiver { get; protected private set; }
         public DateTime CreatedTime { get; }
         [JsonIgnore]
         public abstract string FormatContent { get; }
@@ -21,15 +23,42 @@ namespace VTuberNotifier.Watcher.Event
         protected private Dictionary<string, IEnumerable<object>> ContentFormatEnumerator;
         protected private Dictionary<string, Func<LiverDetail, IEnumerable<string>>> ContentFormatEnumeratorFunc;
 
-        public EventBase(T value) : this(value, DateTime.Now) { }
-        protected private EventBase(T value, DateTime dt)
+        protected private EventBase(T latest, T old, DateTime dt, bool determine = true)
         {
-            EventTypeName = GetType().FullName;
-            Item = value;
+            if (latest == null && old == null)
+                throw new NullReferenceException("Either data must be not null.");
+
             CreatedTime = dt;
+            Item = latest;
+            OldItem = old;
+            CreateInner();
+            if (determine)
+            {
+                EventsByLiver = new Dictionary<LiverDetail, EventBase<T>[]>();
+                DetermineEvent();
+            }
+            else
+            {
+                EventsByLiver = null;
+            }
+        }
+        private void CreateInner()
+        {
+            var value = Item ?? OldItem;
             ContentFormat = new(value.ContentFormat);
             ContentFormatEnumerator = new(value.ContentFormatEnumerator);
             ContentFormatEnumeratorFunc = new(value.ContentFormatEnumeratorFunc);
+        }
+        protected private virtual void DetermineEvent()
+        {
+            var value = Item ?? OldItem;
+            EventsByLiver = new Dictionary<LiverDetail, EventBase<T>[]>(value.Livers.Select(l =>
+                new KeyValuePair<LiverDetail, EventBase<T>[]>(l, new[] { this })));
+        }
+
+        public T GetContainsItem()
+        {
+            return Item ?? OldItem;
         }
 
         public virtual string GetDiscordContent(LiverDetail liver)
@@ -54,52 +83,5 @@ namespace VTuberNotifier.Watcher.Event
             format = format.Replace("\\n", "\n");
             return format;
         }
-
-
-        public abstract class EventConverter : JsonConverter<EventBase<T>>
-        {
-            public override EventBase<T> Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
-            {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
-                var (_, item, date) = ReadBase(ref reader, type, options);
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return ResultEvent(item, date);
-                throw new JsonException();
-            }
-            protected private static (string evt_name, T value, DateTime dt) ReadBase(ref Utf8JsonReader reader, Type _, JsonSerializerOptions options)
-            {
-                reader.Read();
-                reader.Read();
-                var type = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var date = DateTime.Parse(reader.GetString());
-                reader.Read();
-                reader.Read();
-                var item = JsonSerializer.Deserialize<T>(ref reader, options);
-                return (type, item, date);
-            }
-            protected private abstract EventBase<T> ResultEvent(T value, DateTime dt);
-
-            public override void Write(Utf8JsonWriter writer, EventBase<T> value, JsonSerializerOptions options)
-            {
-                writer.WriteStartObject();
-                WriteBase(writer, value, options);
-                writer.WriteEndObject();
-            }
-            protected private static void WriteBase(Utf8JsonWriter writer, EventBase<T> value, JsonSerializerOptions options)
-            {
-                writer.WriteString("EventType", value.EventTypeName);
-                writer.WriteString("CreatedDate", value.CreatedTime.ToString("g"));
-                writer.WritePropertyName("Item");
-                JsonSerializer.Serialize(writer, value.Item, options);
-            }
-        }
-    }
-
-    public interface IEventBase
-    {
-        public string GetDiscordContent(LiverDetail liver);
-        public string ConvertContent(string format, LiverDetail liver);
     }
 }
