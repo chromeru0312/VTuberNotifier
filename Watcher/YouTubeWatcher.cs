@@ -1,27 +1,24 @@
-﻿using Discord;
-using Google.Apis.YouTube.v3.Data;
+﻿using Google.Apis.YouTube.v3.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Web;
 using VTuberNotifier.Notification;
 using VTuberNotifier.Liver;
 using VTuberNotifier.Watcher.Event;
-using System.Net.Http;
 
-namespace VTuberNotifier.Watcher.Feed
+namespace VTuberNotifier.Watcher
 {
-    public class YouTubeFeed
+    public class YouTubeWatcher
     {
-        public static YouTubeFeed Instance { get; private set; }
+        public static YouTubeWatcher Instance { get; private set; }
         public IReadOnlyDictionary<Address, IReadOnlyList<YouTubeItem>> FoundLiveList { get; private set; }
         public IReadOnlyList<YouTubeItem> FutureLiveList { get; private set; }
 
-        private YouTubeFeed()
+        private YouTubeWatcher()
         {
             var dic = new Dictionary<Address, IReadOnlyList<YouTubeItem>>();
             foreach (var liver in LiverData.GetAllLiversList())
@@ -54,36 +51,23 @@ namespace VTuberNotifier.Watcher.Feed
         public static void CreateInstance()
         {
             if (Instance != null) return;
-            Instance = new YouTubeFeed();
+            Instance = new YouTubeWatcher();
         }
 
         public async Task<bool> RegisterNotification(string id)
         {
-            try
-            {
-                var enc = Encoding.UTF8;
-                var topic = HttpUtility.UrlEncode($"https://www.youtube.com/xml/feeds/videos.xml?channel_id={id}", enc);
-                var callback = HttpUtility.UrlEncode(Settings.Data.NotificationCallback, enc);
-                var url = "https://pubsubhubbub.appspot.com/subscribe";
-
-                var data = new Dictionary<string, string>()
+            var data = new FormUrlEncodedContent(new Dictionary<string, string>()
                 {
-                    { "hub.mode", "subscribe" }, { "hub.verify", "async" },
-                    { "hub.callback", callback }, { "hub.topic", topic }
-                };
-                await Settings.Data.HttpClient.PostAsync(url, new FormUrlEncodedContent(data));
-
-                LocalConsole.Log(this, new(LogSeverity.Info, "NotificationRegister", $"Registerd: {id}"));
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LocalConsole.Log(this, new(LogSeverity.Error, "NotificationRegister", $"Missing Register: {id}", ex));
-                return false;
-            }
+                    { "hub.callback", Settings.Data.NotificationCallback },
+                    { "hub.topic", $"https://www.youtube.com/xml/feeds/videos.xml?channel_id={id}" },
+                    { "hub.verify", "async" }, { "hub.mode", "subscribe" },
+                    { "hub.verify_token", "" }, { "hub.secret", "" }, { "hub.lease_seconds", "" }
+                });
+            var res = await Settings.Data.HttpClient.PostAsync("https://pubsubhubbub.appspot.com/subscribe", data);
+            return res.IsSuccessStatusCode;
         }
 
-        public YouTubeEvent CheckNewLive(string id, out YouTubeItem item)
+        public bool CheckNewLive(string id, out YouTubeItem item)
         {
             item = null;
             var req = Settings.Data.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
@@ -91,44 +75,16 @@ namespace VTuberNotifier.Watcher.Feed
             req.MaxResults = 1;
 
             var res = req.Execute();
-            if (res.Items.Count == 0)
-                return new YouTubeDeleteLiveEvent(FutureLiveList.FirstOrDefault(v => v.Id == id));
+            if (res.Items.Count == 0) return false;
             var video = res.Items[0];
 
             item = new(res.Items[0]);
-            if (item.Channel == null) return null;
-            var old = FoundLiveList[item.Channel].FirstOrDefault(v => v.Id == id);
+            if (item.Channel == null || item.Livers.Count == 0 || FoundLiveList[item.Channel].FirstOrDefault(v => v.Id == id) != null)
+                return false;
+
+            var add = item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null 
+                && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming";
             var list = new List<YouTubeItem>(FoundLiveList[item.Channel]) { item };
-            YouTubeEvent evt = null;
-            bool add = false;
-            if (old != null)
-            {
-                list.Remove(old);
-                var future = new List<YouTubeItem>(FutureLiveList);
-                if (future.Contains(old))
-                {
-                    future.Remove(old);
-                    FutureLiveList = future;
-                    if (!item.Equals(old))
-                    {
-                        add = item.Livers.Count != 0;
-                        evt = add ? YouTubeChangeEvent.CreateEvent(old, item) : new YouTubeDeleteLiveEvent(item);
-                    }
-                    else add = true;
-                }
-                else if (item.Livers.Count != old.Livers.Count && item.Livers.Count != 0)
-                {
-                    evt = YouTubeNewEvent.CreateEvent(item);
-                    add = item.Mode != YouTubeItem.YouTubeMode.Video;
-                }
-            }
-            else if(item.Livers.Count != 0)
-            {
-                add = item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null
-                    && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming";
-                if (item.Mode == YouTubeItem.YouTubeMode.Video || add)
-                    evt = YouTubeNewEvent.CreateEvent(item);
-            }
             FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [item.Channel] = list };
             DataManager.Instance.DataSave($"youtube/{item.Channel.YouTubeId}", list, true);
 
@@ -137,7 +93,7 @@ namespace VTuberNotifier.Watcher.Feed
                 FutureLiveList = new List<YouTubeItem>(FutureLiveList) { item };
                 DataManager.Instance.DataSave("youtube/FutureLiveList", FutureLiveList, true);
             }
-            return evt;
+            return item.Mode == YouTubeItem.YouTubeMode.Video || add;
         }
 
         public List<YouTubeEvent> CheckLiveChanged()
@@ -152,18 +108,10 @@ namespace VTuberNotifier.Watcher.Feed
                 var e = tasks[i].Result;
                 if (e != null)
                 {
-                    if (e is YouTubeChangeEvent ce)
-                    {
-                        list.Remove(ce.OldItem);
-                        list.Insert(i - delc, ce.Item);
-                        if (ce is not YouTubeChangeEvent.OtherEvent)
-                            evts.Add(e);
-                    }
-                    else
-                    {
-                        list.Remove(e.Item);
-                        if (e is not YouTubeAlradyLivedEvent) evts.Add(e);
-                    }
+                    list.Remove(e.OldItem);
+                    if (e is YouTubeChangeEvent)
+                        list.Insert(i - delc, e.Item);
+                    evts.Add(e);
                     delc++;
                 }
             }
@@ -176,20 +124,22 @@ namespace VTuberNotifier.Watcher.Feed
 
             static async Task<YouTubeEvent> CheckFutureLive(YouTubeItem item)
             {
-                if (item.Mode == YouTubeItem.YouTubeMode.Video) return new YouTubeAlradyLivedEvent(item);
+                if (item.Mode == YouTubeItem.YouTubeMode.Video) return null;
                 var req = Settings.Data.YouTubeService.Videos.List("contentDetails, liveStreamingDetails, snippet");
                 req.Id = item.Id;
                 req.MaxResults = 1;
 
                 var res = await req.ExecuteAsync();
-                if (res.Items.Count == 0) return new YouTubeDeleteLiveEvent(item);
+                if (res.Items.Count == 0)
+                    return new YouTubeDeleteLiveEvent(item);
+
                 var video = res.Items[0];
                 if (video.Snippet.LiveBroadcastContent == "live")
                     return new YouTubeStartLiveEvent(item);
                 else if (video.LiveStreamingDetails?.ActualStartTime != null && video.Snippet.LiveBroadcastContent == "none")
                     return new YouTubeAlradyLivedEvent(item);
                 else if (!item.Equals(video) || item.UpdatedDate < DateTime.Now.AddDays(-7))
-                    return YouTubeChangeEvent.CreateEvent(item, new(video));
+                    return YouTubeChangeEvent.CreateEvent(new(video), item);
                 else return null;
             }
         }
@@ -199,12 +149,12 @@ namespace VTuberNotifier.Watcher.Feed
     [JsonConverter(typeof(YouTubeItemConverter))]
     public class YouTubeItem : IEquatable<YouTubeItem>, INotificationContent
     {
-        public enum YouTubeMode { Video, Premire, Live }
+        public enum YouTubeMode { Video, Premire, Live, Archive }
 
         public YouTubeMode Mode { get; }
         public string Id { get; }
         public string Title { get; }
-        public string Description { get; }
+        public TextContent Description { get; }
         public bool IsOfficialChannel { get; }
         public Address Channel { get; }
         public string ChannelName { get; }
@@ -212,6 +162,7 @@ namespace VTuberNotifier.Watcher.Feed
         public DateTime UpdatedDate { get; }
         public string LiveChatId { get; }
         public DateTime LiveStartDate { get; }
+        public bool IsEndedLive { get; }
         public bool IsCollaboration { get; }
         public IReadOnlyList<LiverDetail> Livers { get; }
 
@@ -236,19 +187,33 @@ namespace VTuberNotifier.Watcher.Feed
         {
             Id = video.Id;
             Title = video.Snippet.Title;
-            Description = video.Snippet.Description;
+            Description = new(video.Snippet.Description);
             ChannelName = video.Snippet.ChannelTitle;
             PublishedDate = video.Snippet.PublishedAt != null ? (DateTime)video.Snippet.PublishedAt : DateTime.Now;
             UpdatedDate = update ?? DateTime.Now;
 
             if (video.LiveStreamingDetails != null)
             {
-                if (video.ContentDetails?.Duration != "P0D") Mode = YouTubeMode.Premire;
-                else Mode = YouTubeMode.Live;
-                LiveChatId = video.LiveStreamingDetails.ActiveLiveChatId;
+                IsEndedLive = video.LiveStreamingDetails.ActualEndTime != null;
+                if (IsEndedLive)
+                {
+                    Mode = YouTubeMode.Archive;
+                    LiveChatId = null;
+                }
+                else
+                {
+                    Mode = video.ContentDetails?.Duration != "P0D" ? YouTubeMode.Premire : YouTubeMode.Live;
+                    LiveChatId = video.LiveStreamingDetails.ActiveLiveChatId;
+                }
+                
                 LiveStartDate = video.LiveStreamingDetails.ScheduledStartTime ?? PublishedDate;
             }
-            else Mode = YouTubeMode.Video;
+            else
+            {
+                Mode = YouTubeMode.Video;
+                LiveChatId = null;
+                LiveStartDate = PublishedDate;
+            }
 
             var chid = video.Snippet.ChannelId;
             Address channel = LiverData.GetLiverFromYouTubeId(chid);
@@ -258,7 +223,8 @@ namespace VTuberNotifier.Watcher.Feed
             {
                 if (liver == channel) continue;
 
-                if (Description.Contains(liver.YouTubeId) || Description.Contains('@' + liver.ChannelName))
+                if (Description.Urls.FirstOrDefault(u => u.Liver == liver) != null ||
+                    Description.Content.Contains('@' + liver.ChannelName))
                     res.Add(liver);
             }
             Livers = res;
@@ -277,9 +243,8 @@ namespace VTuberNotifier.Watcher.Feed
                 IsCollaboration = Livers.Count == 1;
             }
         }
-        private YouTubeItem(YouTubeMode mode, string id, string title, string description,
-            bool official, Address ch, string ch_name, DateTime publish, DateTime update,
-            string chat_id, DateTime start_date, List<LiverDetail> livers)
+        private YouTubeItem(YouTubeMode mode, string id, string title, TextContent description, bool official, Address ch,
+            string ch_name, DateTime publish, DateTime update, string chat_id, DateTime start_date, List<LiverDetail> livers)
         {
             Mode = mode;
             Id = id;
@@ -302,14 +267,13 @@ namespace VTuberNotifier.Watcher.Feed
         }
         public bool Equals(YouTubeItem other)
         {
-            return Id == other.Id && Livers == other.Livers && Title == other.Title &&
-                Description == other.Description && LiveStartDate == other.LiveStartDate;
+            return Id == other.Id && Title == other.Title && Description == other.Description && LiveStartDate == other.LiveStartDate;
         }
         public bool Equals(Video other)
         {
-            return other.Snippet != null && Id == other.Id && Title == other.Snippet.Title &&
-                Description == other.Snippet.Description && other.LiveStreamingDetails != null &&
-                LiveStartDate == other.LiveStreamingDetails.ScheduledStartTime;
+            return Id == other.Id && Title == other.Snippet?.Title && Description.Content == other.Snippet?.Description &&
+                ((other.LiveStreamingDetails == null && LiveStartDate == other.Snippet?.PublishedAt) ||
+                (other.LiveStreamingDetails != null && LiveStartDate == other.LiveStreamingDetails.ScheduledStartTime));
         }
 
         public override int GetHashCode()
@@ -321,53 +285,29 @@ namespace VTuberNotifier.Watcher.Feed
         {
             public override YouTubeItem Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                reader.Read();
-                reader.Read();
-                var mode = (YouTubeMode)reader.GetInt32();
-                reader.Read();
-                reader.Read();
-                var id = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var title = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var description = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var official = reader.GetBoolean();
-                reader.Read();
-                reader.Read();
+                var mode = (YouTubeMode)reader.GetNextValue<int>(options);
+                var id = reader.GetNextValue<string>(options);
+                var title = reader.GetNextValue<string>(options);
+                var description = reader.GetNextValue<TextContent>(options);
+                var official = reader.GetNextValue<bool>(options);
                 Address channel;
                 if (official)
                 {
-                    var gid = JsonSerializer.Deserialize<Address>(ref reader, options).Id;
+                    var gid = reader.GetNextValue<Address>(options).Id;
                     channel = LiverGroup.GroupList.FirstOrDefault(g => g.Id == gid);
                 }
-                else channel = JsonSerializer.Deserialize<LiverDetail>(ref reader, options);
-                reader.Read();
-                reader.Read();
-                var ch_name = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var publish = DateTime.Parse(reader.GetString());
-                reader.Read();
-                reader.Read();
-                var chat_id = reader.GetString();
-                reader.Read();
-                reader.Read();
-                var livestart = DateTime.Parse(reader.GetString());
-                reader.Read();
-                reader.Read();
-                var livers = JsonSerializer.Deserialize<List<LiverDetail>>(ref reader, options);
+                else channel = reader.GetNextValue<LiverDetail>(options);
+                var ch_name = reader.GetNextValue<string>(options);
+                var publish = reader.GetNextValue<DateTime>(options);
+                var chat_id = reader.GetNextValue<string>(options);
+                var livestart = reader.GetNextValue<DateTime>(options);
+                var livers = reader.GetNextValue<List<LiverDetail>>(options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject)
-                    return new(mode, id, title, description, official, channel, ch_name,
-                        publish, DateTime.Now, chat_id, livestart, livers);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(mode, id, title, description, official, channel, ch_name, publish, DateTime.Now,
+                    chat_id, livestart, livers);
             }
 
             public override void Write(Utf8JsonWriter writer, YouTubeItem value, JsonSerializerOptions options)
@@ -377,7 +317,7 @@ namespace VTuberNotifier.Watcher.Feed
                 writer.WriteNumber("Mode", (int)value.Mode);
                 writer.WriteString("VideoId", value.Id);
                 writer.WriteString("VideoTitle", value.Title);
-                writer.WriteString("VideoDescription", value.Description);
+                writer.WriteValue("VideoDescription", value.Description, options);
 
                 writer.WriteBoolean("IsOfficialChannel", value.IsOfficialChannel);
                 writer.WritePropertyName("VideoChannel");
@@ -388,8 +328,7 @@ namespace VTuberNotifier.Watcher.Feed
                 writer.WriteString("PublishedDate", value.PublishedDate.ToString("G"));
                 writer.WriteString("LiveChatId", value.LiveChatId);
                 writer.WriteString("LiveStartDate", value.LiveStartDate.ToString("G"));
-                writer.WritePropertyName("Livers");
-                JsonSerializer.Serialize(writer, value.Livers, options);
+                writer.WriteValue("Livers", value.Livers, options);
 
                 writer.WriteEndObject();
             }
