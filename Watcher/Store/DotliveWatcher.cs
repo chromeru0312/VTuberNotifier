@@ -80,7 +80,7 @@ namespace VTuberNotifier.Watcher.Store
                         e = DateTime.Parse(strs[1]);
                     }
 
-                    var dp = new DotliveProduct(title, url, cate, tags, explain, plist, s, e);
+                    var dp = new DotliveProduct(url, title, new(explain), cate, tags, plist, s, e);
                     if (!FoundProducts.Contains(dp)) list.Add(dp);
                     else
                     {
@@ -108,16 +108,16 @@ namespace VTuberNotifier.Watcher.Store
         public IReadOnlyList<string> Tags { get; }
         private protected override string ExceptUrl { get; } = "https://4693.live/items/";
 
-        public DotliveProduct(string title, string url, string category, List<string> tags, string explain,
-            List<(string, int)> items, DateTime? start = null, DateTime? end = null)
-            : base(title, url, LiverGroup.Nijiasnji, category, items,
-                  new(IProductTag.LiverTag(LiverGroup.Dotlive, tags).Union(DetectLiver(LiverGroup.Dotlive, explain))), start, end)
+        public DotliveProduct(string url, string title, TextContent description, string category, List<string> tags, List<(string, int)> items,
+            DateTime? start = null, DateTime? end = null)
+            : base(null, url, title, description, LiverGroup.Dotlive, category, items,
+                  new(IProductTag.LiverTag(LiverGroup.Dotlive, tags).Union(DetectLiver(LiverGroup.Dotlive, description.Content))), start, end)
         {
             Tags = tags ?? new();
         }
-        protected private DotliveProduct(string id, string title, string url, string category, List<string> tags,
+        protected private DotliveProduct(string id, string url, string title, TextContent description, string category, List<string> tags,
             List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
-            : base(id, title, url, LiverGroup.Dotlive, category, items, livers, start, end)
+            : base(id, url, title, description, LiverGroup.Dotlive, category, items, livers, start, end)
         {
             Tags = tags;
         }
@@ -126,15 +126,13 @@ namespace VTuberNotifier.Watcher.Store
         {
             public override DotliveProduct Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                var (id, title, url, _, category, items, livers, start, end) = ReadBase(ref reader, type, options);
-                var tags = IProductTag.ReadTags(ref reader, type, options);
+                var (id, url, title, desc, _, category, items, livers, start, end) = ReadBase(ref reader, options);
+                var tags = IProductTag.ReadTags(ref reader, options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject)
-                    return new(id, title, url, category, tags, items, livers, start, end);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(id, url, title, desc, category, tags, items, livers, start, end);
             }
 
             public override void Write(Utf8JsonWriter writer, DotliveProduct value, JsonSerializerOptions options)

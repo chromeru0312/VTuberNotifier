@@ -100,7 +100,7 @@ namespace VTuberNotifier.Watcher.Store
                         e = DateTime.ParseExact(str_e, "yyyy/M/d HH:mm", Settings.Data.Culture);
                     }
 
-                    var np = new NijisanjiProduct(title, url, cate, genre, explain, plist, s, e, coming);
+                    var np = new NijisanjiProduct(url, title, new(explain), cate, genre, plist, s, e, coming);
                     if (!FoundProducts.Contains(np)) list.Add(np);
                     else
                     {
@@ -143,16 +143,17 @@ namespace VTuberNotifier.Watcher.Store
         public override IReadOnlyDictionary<string, string> ContentFormat
             => new Dictionary<string, string>(base.ContentFormat) { { "Genre", Genre } };
 
-        public NijisanjiProduct(string title, string url, string category, string genre, string explain,
+        public NijisanjiProduct(string url, string title,TextContent description, string category, string genre,
             List<(string, int)> items, DateTime? start = null, DateTime? end = null, bool issale = false)
-            : base(title, url, LiverGroup.Nijiasnji, category, items, DetectLiver(LiverGroup.Nijiasnji, explain), start, end)
+            : base(null, url, title, description, LiverGroup.Nijiasnji, category, items,
+                  DetectLiver(LiverGroup.Nijiasnji, description.Content), start, end)
         {
             Genre = genre;
             if (start == null) IsOnSale = issale;
         }
-        private NijisanjiProduct(string id, string title, string url, string category, string genre, List<ProductItem> items,
-            List<LiverDetail> livers, DateTime? start, DateTime? end)
-            : base(id, title, url, LiverGroup.Nijiasnji, category, items, livers, start, end)
+        private NijisanjiProduct(string id, string url, string title, TextContent description, string category, string genre,
+            List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
+            : base(id, url, title, description, LiverGroup.Nijiasnji, category, items, livers, start, end)
         {
             Genre = genre;
         }
@@ -161,17 +162,13 @@ namespace VTuberNotifier.Watcher.Store
         {
             public override NijisanjiProduct Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                var (id, title, url, _, category, items, livers, start, end) = ReadBase(ref reader, type, options);
-                reader.Read();
-                reader.Read();
-                var genre = reader.GetString();
+                var (id, url, title, desc, _, category, items, livers, start, end) = ReadBase(ref reader, options);
+                var genre = reader.GetNextValue<string>(options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject)
-                    return new(id, title, url, category, genre, items, livers, start, end);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(id, url, title, desc, category, genre, items, livers, start, end);
             }
 
             public override void Write(Utf8JsonWriter writer, NijisanjiProduct value, JsonSerializerOptions options)

@@ -22,7 +22,7 @@ namespace VTuberNotifier.Watcher.Store
             foreach (var group in LiverGroup.GroupList)
             {
                 if (!group.IsExistBooth) continue;
-                if (DataManager.Instance.TryDataLoad($"store/booth/{group.GroupId}", out List<BoothProduct> list))
+                if (DataManager.Instance.TryDataLoad($"store/booth_{group.GroupId}", out List<BoothProduct> list))
                     dic.Add(group, list);
                 else dic.Add(group, new List<BoothProduct>());
             }
@@ -110,7 +110,7 @@ namespace VTuberNotifier.Watcher.Store
                     var e_node = ndate.SelectSingleNode("./div[@class='end_at']");
                     if (e_node != null) e = DateTime.Parse(e_node.InnerText.Trim().Replace("まで", ""), Settings.Data.Culture);
                 }
-                var bp = new BoothProduct(title, shop, id, cate, tags, explain, items, s, e);
+                var bp = new BoothProduct(id, title, new(explain), shop, cate, tags, items, s, e);
                 if (!FoundProducts[shop].Contains(bp)) list.Add(bp);
             }
             if (list.Count > 0)
@@ -132,17 +132,17 @@ namespace VTuberNotifier.Watcher.Store
         public IReadOnlyList<string> Tags { get; }
         private protected override string ExceptUrl { get; } = "https://booth.pm/ja/items/";
 
-        public BoothProduct(string title, LiverGroupDetail shop, long id, string category, List<string> tags,
-            string explain, List<(string, int)> items, DateTime? start = null, DateTime? end = null)
-            : base(id.ToString(), title, $"https://{shop.GroupId}.booth.pm/items/{id}", shop, category, items,
-                  new(IProductTag.LiverTag(shop, tags).Union(DetectLiver(shop, explain))), start, end)
+        public BoothProduct(long id, string title, TextContent description, LiverGroupDetail shop, string category, List<string> tags,
+            List<(string, int)> items, DateTime? start = null, DateTime? end = null)
+            : base(id.ToString(), $"https://{shop.GroupId}.booth.pm/items/{id}", title, description, shop, category, items,
+                  new(IProductTag.LiverTag(shop, tags).Union(DetectLiver(shop, description.Content))), start, end)
         {
             Id = id;
             Tags = tags;
         }
-        protected private BoothProduct(long id, string title, string url, LiverGroupDetail shop, string category,
+        protected private BoothProduct(long id, string url, string title, TextContent description, LiverGroupDetail shop, string category,
             List<string> tags, List<ProductItem> items, List<LiverDetail> livers, DateTime? start, DateTime? end)
-            : base(id.ToString(), title, url, shop, category, items, livers, start, end)
+            : base(id.ToString(), url, title, description, shop, category, items, livers, start, end)
         {
             Id = id;
             Tags = tags;
@@ -152,15 +152,13 @@ namespace VTuberNotifier.Watcher.Store
         {
             public override BoothProduct Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                var (id, title, url, shop, category, items, livers, start, end) = ReadBase(ref reader, type, options);
-                var tags = IProductTag.ReadTags(ref reader, type, options);
+                var (id, url, title, desc, shop, category, items, livers, start, end) = ReadBase(ref reader, options);
+                var tags = IProductTag.ReadTags(ref reader, options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject)
-                    return new(long.Parse(id, Settings.Data.Culture), title, url, shop, category, tags, items, livers, start, end);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(long.Parse(id, Settings.Data.Culture), url, title, desc, shop, category, tags, items, livers, start, end);
             }
 
             public override void Write(Utf8JsonWriter writer, BoothProduct value, JsonSerializerOptions options)
