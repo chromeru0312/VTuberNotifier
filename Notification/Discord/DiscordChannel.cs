@@ -11,12 +11,14 @@ namespace VTuberNotifier.Notification.Discord
     {
         public ulong GuildId { get; }
         public ulong ChannelId { get; }
+        public bool IsEditContent { get; }
 
-        public DiscordChannel(ulong guild, ulong ch) : this(guild, ch, new()) { }
-        private DiscordChannel(ulong guild, ulong ch, Dictionary<Type, string> dic) : base(dic)
+        public DiscordChannel(ulong guild, ulong ch, bool edit = false) : this(guild, ch, edit, new()) { }
+        private DiscordChannel(ulong guild, ulong ch, bool edit, Dictionary<Type, string> dic) : base(dic)
         {
             GuildId = guild;
             ChannelId = ch;
+            IsEditContent = edit;
         }
 
         public override bool Equals(object obj)
@@ -36,19 +38,15 @@ namespace VTuberNotifier.Notification.Discord
         {
             public override DiscordChannel Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
+                reader.CheckStartToken();
 
-                reader.Read();
-                reader.Read();
-                var guild = reader.GetUInt64();
-                reader.Read();
-                reader.Read();
-                var channel = reader.GetUInt64();
-                var dic = ReadBase(ref reader);
+                var guild = reader.GetNextValue<ulong>(options);
+                var channel = reader.GetNextValue<ulong>(options);
+                var edit = reader.GetNextValue<bool>(options);
+                var dic = ReadBase(ref reader, options);
 
-                reader.Read();
-                if (reader.TokenType == JsonTokenType.EndObject) return new(guild, channel, dic);
-                throw new JsonException();
+                reader.CheckEndToken();
+                return new(guild, channel, edit, dic);
             }
 
             public override void Write(Utf8JsonWriter writer, DiscordChannel value, JsonSerializerOptions options)
@@ -57,6 +55,7 @@ namespace VTuberNotifier.Notification.Discord
 
                 writer.WriteNumber("Guild", value.GuildId);
                 writer.WriteNumber("Channel", value.ChannelId);
+                writer.WriteBoolean("IsEditContent", value.IsEditContent);
                 WriteBase(writer, value);
 
                 writer.WriteEndObject();
