@@ -9,7 +9,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using VTuberNotifier.Liver;
 
 namespace VTuberNotifier.Watcher
 {
@@ -98,7 +97,6 @@ namespace VTuberNotifier.Watcher
     {
         public string Url { get; }
         public string ExpandedUrl { get; }
-        public LiverDetail Liver { get; }
 
         private ContentUrl(string url, string exp_url)
         {
