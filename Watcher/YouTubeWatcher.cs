@@ -216,15 +216,15 @@ namespace VTuberNotifier.Watcher
             }
 
             var chid = video.Snippet.ChannelId;
-            Address channel = LiverData.GetLiverFromYouTubeId(chid);
+            var channel = LiverData.GetLiverFromYouTubeId(chid);
             List<LiverDetail> livers = new(LiverData.GetAllLiversList()),
-                 res = channel == null ? new() : new() { (LiverDetail)channel };
+                 res = channel == null ? new() : new() { channel };
             foreach (var liver in livers)
             {
                 if (liver == channel) continue;
 
-                if (Description.Urls.FirstOrDefault(u => u.Liver == liver) != null ||
-                    Description.Content.Contains('@' + liver.ChannelName))
+                if (Description.Urls.FirstOrDefault(u => IsLiverUrl(u, liver)) != null
+                    || Description.Content.Contains('@' + liver.ChannelName))
                     res.Add(liver);
             }
             Livers = res;
@@ -238,10 +238,14 @@ namespace VTuberNotifier.Watcher
             }
             else
             {
-                Channel = channel ?? LiveChannel.GetLiveChannelList().FirstOrDefault(c => c.YouTubeId == chid);
+                Channel = (Address)channel ?? LiveChannel.GetLiveChannelList().FirstOrDefault(c => c.YouTubeId == chid);
                 IsOfficialChannel = false;
                 IsCollaboration = Livers.Count == 1;
             }
+
+            static bool IsLiverUrl(ContentUrl url, LiverDetail liver)
+                => url != null && url.ExpandedUrl != null &&
+                    url.ExpandedUrl.StartsWith("https://www.youtube.com/") && url.ExpandedUrl.Contains(liver.YouTubeId);
         }
         private YouTubeItem(YouTubeMode mode, string id, string title, TextContent description, bool official, Address ch,
             string ch_name, DateTime publish, DateTime update, string chat_id, DateTime start_date, List<LiverDetail> livers)
