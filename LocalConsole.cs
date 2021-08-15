@@ -99,7 +99,7 @@ namespace VTuberNotifier
                     var count = 5;
                     while (ex.InnerException != null)
                     {
-                        ex = e.InnerException;
+                        ex = ex.InnerException;
                         ConsoleWriter.FileStream.WriteLine($"--> {ex.GetType()} - {ex.Message}" +
                             (ex.StackTrace == null ? "" : $"\n    {ex.StackTrace.Replace("\n", "\n    ")}"));
                         count--;
