@@ -1,12 +1,13 @@
 ﻿using Discord;
 using Discord.Commands;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VTuberNotifier.Liver;
 
 namespace VTuberNotifier.Notification.Discord
 {
-    public class CmdVInfo : CmdBase
+    public class CmdVInfo : ModuleBase
     {
         [Command("vinfo add")]
         public async Task AddNotify(string liver, string services, bool only = true, bool edit = false)
@@ -16,26 +17,26 @@ namespace VTuberNotifier.Notification.Discord
 
             if (!LiverData.DetectLiver(liver, out var detail))
             {
-                await SendError(this, 3, "The specified river cannot be found.");
+                await ReplyError(3, "The specified river cannot be found.");
                 return;
             }
             var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id, edit);
             if (!EventNotifier.Instance.DetectTypes(detail, out var types, services.Split(',')))
             {
-                await SendError(this, 4, "This service is not supported/found.");
+                await ReplyError(4, "This service is not supported/found.");
                 return;
             }
             foreach (var t in types) ch.AddContent(t, only);
 
             if (EventNotifier.Instance.AddDiscordList(detail, ch))
             {
-                await ReplyAsync("Success.");
+                await ReplySuccess("Successfully added.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Add", "Add new service."));
                 DiscordBot.Instance.AddChannel(Context.Guild.Id, Context.Channel.Id);
             }
             else
             {
-                await SendError(this, 2, "Some errors has occured.");
+                await ReplyError(2, "Some errors has occured.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Warning, "Add", "Failed to add service."));
             }
 
@@ -51,25 +52,25 @@ namespace VTuberNotifier.Notification.Discord
 
             if (!LiverData.DetectLiver(liver, out var detail))
             {
-                await SendError(this, 3, "The specified river cannot be found.");
+                await ReplyError(3, "The specified river cannot be found.");
                 return;
             }
             var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id);
             if (!EventNotifier.Instance.DetectType(detail, out var type, service))
             {
-                await SendError(this, 4, "This service is not supported/found.");
+                await ReplyError(4, "This service is not supported/found.");
                 return;
             }
             ch.SetContent(type, only, content);
 
             if (EventNotifier.Instance.UpdateDiscordList(detail, ch))
             {
-                await ReplyAsync("Success.");
+                await ReplySuccess("Successfully updated.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Update", "Update service."));
             }
             else
             {
-                await SendError(this, 2, "This channel or service is not alrady added.");
+                await ReplyError(2, "This channel or service is not alrady added.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Warning, "Update", "Failed to update service."));
             }
         }
@@ -82,7 +83,7 @@ namespace VTuberNotifier.Notification.Discord
 
             if (!LiverData.DetectLiver(liver, out var detail))
             {
-                await SendError(this, 3, "The specified river cannot be found.");
+                await ReplyError(3, "The specified river cannot be found.");
                 return;
             }
             bool rem;
@@ -91,7 +92,7 @@ namespace VTuberNotifier.Notification.Discord
             {
                 if (!EventNotifier.Instance.DetectTypes(detail, out var types, services.Split(',')))
                 {
-                    await SendError(this, 4, "This service is not supported/found.");
+                    await ReplyError(4, "This service is not supported/found.");
                     return;
                 }
                 foreach (var t in types) ch.RemoveContent(t);
@@ -100,18 +101,18 @@ namespace VTuberNotifier.Notification.Discord
             else rem = true;
             if (!rem && EventNotifier.Instance.UpdateDiscordList(detail, ch))
             {
-                await ReplyAsync("Success.");
+                await ReplySuccess("Successfully updated.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Remove", "Update service."));
             }
             else if (rem && EventNotifier.Instance.RemoveDiscordList(detail, ch))
             {
-                await ReplyAsync("Success.");
+                await ReplySuccess("Successfully removed.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Debug, "Remove", "Remove service."));
                 DiscordBot.Instance.RemoveChannel(Context.Guild.Id, Context.Channel.Id);
             }
             else
             {
-                await SendError(this, 2, "This channel is not alrady added.");
+                await ReplyError(2, "This channel is not alrady added.");
                 LocalConsole.Log("DiscordCmd", new (LogSeverity.Warning, "Remove", "Failed to remove service."));
             }
         }
@@ -127,19 +128,41 @@ namespace VTuberNotifier.Notification.Discord
                     await SetContent(args[1], args[2], b, args[4]);
                 else if (args.Length == 2 && args[0] == list[2]) await RemoveNotify(args[1]);
                 else if (args.Length == 3 && args[0] == list[2]) await RemoveNotify(args[1], args[2]);
-                else await SendError(this, -1, "Invalid command argument.");
+                else await ReplyError(0, "Invalid command argument.");
             }
             else
             {
-                await SendError(this, 1, "This command type is not existed.");
+                await ReplyError(1, "This command type is not existed.");
             }
         }
 
-        private async Task<bool> IsArgumentNullOrEmpty(int no, string arg)
+        private async Task<bool> IsArgumentNullOrEmpty(byte no, string arg)
         {
             var b = string.IsNullOrEmpty(arg);
-            if (b) await SendError(this, no, "Argument is empty.");
+            if (b) await ReplyError(no, "Argument is empty.");
             return b;
+        }
+
+        private async Task<IUserMessage> ReplySuccess(string msg)
+        {
+            var embed = new EmbedBuilder()
+            {
+                Title = "Success",
+                Description = msg,
+                Color = Color.Blue
+            };
+            return await ReplyAsync(embed: embed.Build());
+        }
+        private async Task<IUserMessage> ReplyError(byte argpos, string msg)
+        {
+            var embed = new EmbedBuilder()
+            {
+                Title = "Error",
+                Description = msg + (argpos != 0 ? $" : {Context.Message.Content.Split(' ')[argpos]}" : ""),
+                Color = Color.DarkRed
+            };
+            return await ReplyAsync(embed: embed.Build());
+            throw new ArgumentException(msg);
         }
     }
 }
