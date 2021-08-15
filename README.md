@@ -1,7 +1,7 @@
 # VTuber情報通知サービス: VTuberNotifier
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
 DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できます。   
-現在のバージョン : v.1.0.1 (2021/05/15)
+現在のバージョン : v.1.1.0 (2021/08/09)
   
 バグの発生等稼働において重大な支障が生じた場合は予告なくサービスを一時的に停止することがあります。    
 稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。    
@@ -9,7 +9,7 @@ DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できま�
 ## 対応状況
 ### ライバー
 ##### 企業・グループ(公式ホームページがあるもの)
-[対応済] にじさんじ / ホロライブ / .LIVE / ぶいらいぶ / 774inc. / VOMS  
+[対応済] にじさんじ / ホロライブ / ホロスターズ / .LIVE / ぶいらいぶ / 774inc. / VOMS  
 ##### その他グループ・個人ライバー    
 下記Googleフォームから情報を入力して申請してください。    
 申請人数にもよりますが現時点で200人ほどは新規追加可能です。    
@@ -38,20 +38,25 @@ twitter=[TwitterID]
 
 サービス一覧
 ```
-youtube...YouTubeの下記全ての通知 
- -youtube_new...新規ライブ配信・動画通知  
-  -youtube_new_live...新規ライブ配信通知
-  -youtube_new_premiere...新規プレミア公開通知
-  -youtube_new_video...新規動画通知
- -youtube_change...配信情報の変更通知  
- -youtube_delete...配信の削除通知(放送開始前) 
- -youtube_start...ライブ配信開始通知  
-booth...公式Boothの下記全ての通知(存在する場合)  
- -booth_new...新商品通知  
- -booth_start...商品販売開始通知
-store...公式ストアの下記全ての通知(存在する場合)  
- -store_new...新商品通知  
- -store_start...商品販売開始通知  
+youtube...YouTubeの全ての通知 
+  -youtube_new...新規配信・動画通知
+    -youtube_new_live...新規ライブ配信通知
+    -youtube_new_premiere...新規プレミア公開通知
+    -youtube_new_video...新規動画通知
+  -youtube_change_all...配信情報の全変更通知
+    -youtube_change...配信情報の主要変更通知
+      -youtube_change_title...配信情報のタイトル変更通知
+      -youtube_change_date...配信情報の開始日時変更通知
+      -youtube_change_liver...配信情報のライバー変更通知
+    -youtube_change_desc...配信情報の概要欄変更通知
+  -youtube_delete...配信の削除通知(放送開始前)
+  -youtube_start...ライブ配信開始通知
+booth...公式Boothの全ての通知(存在する場合)
+  -booth_new...新商品通知
+  -booth_start...商品販売開始通知
+store...公式ストアの全ての通知(存在する場合)
+  -store_new...新商品通知
+  -store_start...商品販売開始通知
 article...PR TIMESの新着通知
 ```
 ### DiscordBot
@@ -64,7 +69,7 @@ Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=7
   
 受信するライバー: 操作を行うライバーを指定します。(指定方法はライバー指定方法を参照)  
 通知するサービス: 追加するサービス名をカンマ区切りで入力します。(種類は対応サービス一覧を参照)
-受信する情報: 第1引数で指定されたライバー以外の情報を含めるかどうかを指定します。
+受信する情報: <受信するライバー>で指定されたライバー以外の情報を含めるかどうかを指定します。
              boolean値で入力してください。(既定値=true)
 ```
 
@@ -75,7 +80,7 @@ Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=7
 受信するライバー: 操作を行うライバーを指定します。(指定方法はライバー指定方法を参照)  
 通知するサービス: 追加するサービス名を入力します。(種類は対応サービス一覧を参照)
                  複数入力不可、追加されてないサービスは変更できません。
-受信する情報: 第1引数で指定されたライバー以外の情報を含めるかどうかを指定します。
+受信する情報: <受信するライバー>で指定されたライバー以外の情報を含めるかどうかを指定します。
              boolean値で入力してください。(既定値=true)
 変更後文字列: 通知内容の文字列を指定、改行は\nを使用してください。 
              defaultと入力するか、未入力でデフォルト設定に変更します。
