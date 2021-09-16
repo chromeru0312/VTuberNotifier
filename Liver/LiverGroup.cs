@@ -85,7 +85,7 @@ namespace VTuberNotifier.Liver
 
             static string GetUrl(string name)
             {
-                return $"https://www.nijisanji.jp/_next/data/8MVMjiycXBBHZJSkK4HKv/ja/members/{name}.json" +
+                return $"https://www.nijisanji.jp/_next/data/4QuA9D8652t6N0K4HkReq/ja/members/{name}.json" +
                     $"?liverSlug={name}&filter=%E3%81%AB%E3%81%98%E3%81%95%E3%82%93%E3%81%98&order=debut_at&asc=true";
             }
         }
@@ -359,8 +359,13 @@ namespace VTuberNotifier.Liver
 
                 if (set == null) set = new();
                 s = await MemberLoadAction.Invoke(doc, set);
+                var load = DataManager.Instance.TryDataLoad("NicoTags", out Dictionary<int, string> dic);
                 foreach (var liver in s)
+                {
                     await liver.SetAutoChannelName();
+                    if (load && dic.TryGetValue(liver.Id, out var tag))
+                        liver.NicoTag = tag;
+                }
                 LocalConsole.Log("MemberLoader", new(LogSeverity.Info, GroupId, $"Finish Loading Members."));
             }
             catch (Exception e)
