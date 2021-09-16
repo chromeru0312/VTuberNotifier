@@ -168,20 +168,18 @@ namespace VTuberNotifier.Liver
     [JsonConverter(typeof(LiverDetailConverter))]
     public class LiverDetail : Address
     {
-        public LiverGroupDetail Group { get; private set; }
+        public LiverGroupDetail Group { get; }
         public string ChannelName { get; private set; }
+        public string NicoTag { get; internal set; }
 
         public LiverDetail(int id, LiverGroupDetail group, string name, string youtube, string twitter, string youtube_name = null)
             : base(id, name, youtube, twitter)
         {
             Group = group;
             ChannelName = youtube_name;
+            NicoTag = name;
         }
 
-        internal void SetChannelName(string name)
-        {
-            ChannelName = name;
-        }
         internal async Task SetAutoChannelName()
         {
             if (YouTubeId == null) return;
@@ -190,7 +188,7 @@ namespace VTuberNotifier.Liver
                 var req = Settings.Data.YouTubeService.Channels.List("snippet");
                 req.Id = YouTubeId;
                 var res = await req.ExecuteAsync();
-                SetChannelName(res.Items[0].Snippet.Title);
+                ChannelName = res.Items[0].Snippet.Title;
             }
             catch { }
         }
