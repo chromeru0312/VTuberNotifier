@@ -15,32 +15,20 @@ namespace VTuberNotifier.Watcher
     public class YouTubeWatcher
     {
         public static YouTubeWatcher Instance { get; private set; }
-        public IReadOnlyDictionary<Address, IReadOnlyList<YouTubeItem>> FoundLiveList { get; private set; }
-        public IReadOnlyList<YouTubeItem> FutureLiveList { get; private set; }
+        private Dictionary<Address, List<YouTubeItem>> FoundLiveList { get; set; }
+        private List<YouTubeItem> FutureLiveList { get; set; }
 
         private YouTubeWatcher()
         {
-            var dic = new Dictionary<Address, IReadOnlyList<YouTubeItem>>();
-            foreach (var liver in LiverData.GetAllLiversList())
+            var dic = new Dictionary<Address, List<YouTubeItem>>();
+            var list = new List<Address>(LiverGroup.GroupList).Concat(LiverData.GetAllLiversList()).Concat(LiveChannel.GetLiveChannelList());
+            foreach (var address in list)
             {
-                var id = liver.YouTubeId;
-                if (!DataManager.Instance.TryDataLoad($"youtube/{id}", out List<YouTubeItem> list))
-                    list = new();
-                dic.Add(liver, list);
-            }
-            foreach (var group in LiverGroup.GroupList)
-            {
-                var id = group.YouTubeId;
+                var id = address.YouTubeId;
                 if (id == null) continue;
-                if (!DataManager.Instance.TryDataLoad($"youtube/{id}", out List<YouTubeItem> list))
-                    list = new();
-                dic.Add(group, list);
-            }
-            foreach (var ch in LiveChannel.GetLiveChannelList())
-            {
-                if (!DataManager.Instance.TryDataLoad($"youtube/{ch.YouTubeId}", out List<YouTubeItem> list))
-                    list = new();
-                dic.Add(ch, list);
+                if (!DataManager.Instance.TryDataLoad($"youtube/{id}", out List<YouTubeItem> load))
+                    load = new();
+                dic.Add(address, load);
             }
             FoundLiveList = dic;
 
@@ -50,8 +38,7 @@ namespace VTuberNotifier.Watcher
         }
         public static void CreateInstance()
         {
-            if (Instance != null) return;
-            Instance = new YouTubeWatcher();
+            if (Instance == null) Instance = new();
         }
 
         public async Task<bool> RegisterNotification(string id)
@@ -85,7 +72,7 @@ namespace VTuberNotifier.Watcher
             var add = item.Mode != YouTubeItem.YouTubeMode.Video && video.LiveStreamingDetails.ActualStartTime == null 
                 && item.LiveStartDate > DateTime.Now && video.Snippet.LiveBroadcastContent == "upcoming";
             var list = new List<YouTubeItem>(FoundLiveList[item.Channel]) { item };
-            FoundLiveList = new Dictionary<Address, IReadOnlyList<YouTubeItem>>(FoundLiveList) { [item.Channel] = list };
+            FoundLiveList = new Dictionary<Address, List<YouTubeItem>>(FoundLiveList) { [item.Channel] = list };
             DataManager.Instance.DataSave($"youtube/{item.Channel.YouTubeId}", list, true);
 
             if (add)
@@ -131,11 +118,11 @@ namespace VTuberNotifier.Watcher
 
                 var res = await req.ExecuteAsync();
                 if (res.Items.Count == 0)
-                    return new YouTubeDeleteLiveEvent(item);
+                    return YouTubeDeleteLiveEvent.CreateEvent(item);
 
                 var video = res.Items[0];
                 if (video.Snippet.LiveBroadcastContent == "live")
-                    return new YouTubeStartLiveEvent(item);
+                    return YouTubeStartLiveEvent.CreateEvent(item);
                 else if (video.LiveStreamingDetails?.ActualStartTime != null && video.Snippet.LiveBroadcastContent == "none")
                     return new YouTubeAlradyLivedEvent(item);
                 else if (!item.Equals(video) || item.UpdatedDate < DateTime.Now.AddDays(-7))
@@ -163,7 +150,6 @@ namespace VTuberNotifier.Watcher
         public string LiveChatId { get; }
         public DateTime LiveStartDate { get; }
         public bool IsEndedLive { get; }
-        public bool IsCollaboration { get; }
         public IReadOnlyList<LiverDetail> Livers { get; }
 
         [JsonIgnore]
@@ -234,13 +220,11 @@ namespace VTuberNotifier.Watcher
             {
                 Channel = group;
                 IsOfficialChannel = true;
-                IsCollaboration = true;
             }
             else
             {
                 Channel = (Address)channel ?? LiveChannel.GetLiveChannelList().FirstOrDefault(c => c.YouTubeId == chid);
                 IsOfficialChannel = false;
-                IsCollaboration = Livers.Count == 1;
             }
 
             static bool IsLiverUrl(ContentUrl url, LiverDetail liver)
@@ -262,7 +246,6 @@ namespace VTuberNotifier.Watcher
             LiveChatId = chat_id;
             LiveStartDate = start_date;
             Livers = livers;
-            IsCollaboration = official || Livers.Count == 1;
         }
 
         public override bool Equals(object obj)
