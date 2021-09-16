@@ -106,7 +106,10 @@ namespace VTuberNotifier
             TimerManager.Instance.AddAction(20 * 60, WatcherTask.PRTimesTask, 300);
 
             YouTubeWatcher.CreateInstance();
-            TimerManager.Instance.AddAction(60, WatcherTask.YouTubeChangeTask);
+            TimerManager.Instance.AddAction(30, WatcherTask.YouTubeChangeTask);
+
+            //NicoLiveWatcher.CreateInstance();
+            //TimerManager.Instance.AddAction(6 * 3600, WatcherTask.NicoLiveTask, 3600);
 
             //TwitterWatcher.CreateInstance();
             //TimerManager.Instance.AddAction(60, WatcherTask.TwitterTask);
