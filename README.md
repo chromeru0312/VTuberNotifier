@@ -1,7 +1,7 @@
 # VTuber情報通知サービス: VTuberNotifier
 VTuberのライブ配信やグッズなどの商品情報を通知するサービスです。    
 DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できます。   
-現在のバージョン : v.1.1.0 (2021/08/09)
+現在のバージョン : v.1.2.0 (2021/09/10)
   
 バグの発生等稼働において重大な支障が生じた場合は予告なくサービスを一時的に停止することがあります。    
 稼働情報及び障害情報、またその他問い合わせは [Twitter](https://www.twitter.com/chromeru0312) までお願いします。    
@@ -11,16 +11,14 @@ DiscordBot、WebHook(公開準備中)、WebAPI(対応予定)で取得できま�
 ##### 企業・グループ(公式ホームページがあるもの)
 [対応済] にじさんじ / ホロライブ / ホロスターズ / .LIVE / ぶいらいぶ / 774inc. / VOMS  
 ##### その他グループ・個人ライバー    
-下記Googleフォームから情報を入力して申請してください。    
+[Googleフォーム](https://forms.gle/Euyu89KZSp3hvir6A)から情報を入力して申請してください。    
 申請人数にもよりますが現時点で200人ほどは新規追加可能です。    
-https://forms.gle/Euyu89KZSp3hvir6A
 ##### その他のチャンネル    
 VTuberではないものの、VTuberとの配信を行うチャンネル(TRPGのGMのチャンネル等)も申請可能です。    
 「その他グループ・個人ライバー」のGoogleフォームから情報を入力して申請してください。    
 申請数にもよりますが現時点で50チャンネルほどは追加可能です。   
 ### サービス  
-\[対応済] [YouTube](https://www.youtube.com/) / [Booth](https://booth.pm/) / [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)    
-\[対応予定] [ニコニコ生放送](https://live.nicovideo.jp/)  
+\[対応済] [YouTube](https://www.youtube.com/) / [ニコニコ生放送](https://live.nicovideo.jp/) / [Booth](https://booth.pm/) / [にじさんじオフィシャルストア](https://shop.nijisanji.jp/) / [.LIVE公式ストア](https://4693.live/)    
 \[対応検討中] [Bilibili](https://www.bilibili.com/) / [Twitter](https://twitter.com/)  
 ### 通知方法  
 [対応済] DiscordBot  
@@ -38,7 +36,7 @@ twitter=[TwitterID]
 
 サービス一覧
 ```
-youtube...YouTubeの全ての通知 
+youtube...YouTubeの全ての通知 (※) 
   -youtube_new...新規配信・動画通知
     -youtube_new_live...新規ライブ配信通知
     -youtube_new_premiere...新規プレミア公開通知
@@ -51,6 +49,9 @@ youtube...YouTubeの全ての通知
     -youtube_change_desc...配信情報の概要欄変更通知
   -youtube_delete...配信の削除通知(放送開始前)
   -youtube_start...ライブ配信開始通知
+nicolive...ニコニコ生放送の全ての通知 
+  -nicolive_new...新規ライブ通知
+  -nicolive_start...ライブ開演通知
 booth...公式Boothの全ての通知(存在する場合)
   -booth_new...新商品通知
   -booth_start...商品販売開始通知
@@ -58,9 +59,13 @@ store...公式ストアの全ての通知(存在する場合)
   -store_new...新商品通知
   -store_start...商品販売開始通知
 article...PR TIMESの新着通知
+
+(※)
+YouTubeの通知は末尾に"_self"を挿入することで指定ライバーのチャンネルでのコンテンツのみ通知します。
+また、末尾に"_collaboration"を挿入することで指定ライバーのチャンネル以外でのコンテンツのみ通知します。
 ```
 ### DiscordBot
-Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=799182985600958494&permissions=133184&scope=bot) から追加できます    
+Botの追加は [こちら](https://discord.com/api/oauth2/authorize?client_id=799182985600958494&permissions=215040&scope=bot) から追加できます    
 情報を受信するチャンネルで以下のコマンドを打つことで操作できます。
 
 新規追加：
