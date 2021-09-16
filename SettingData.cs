@@ -10,6 +10,7 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using static System.Net.SecurityProtocolType;
 
@@ -23,12 +24,14 @@ namespace VTuberNotifier
         public int WebPort { get; }
         public YouTubeService YouTubeService { get; }
         public string NotificationCallback { get; }
+        public string NicoLiveToken { get; }
         public Tokens TwitterToken { get; }
         public string DiscordToken { get; }
         public DiscordSocketClient DiscordClient { get; }
         public CommandService DiscordCmdService { get; }
         public IServiceProvider ServicePrivider { get; }
         public HttpClient HttpClient { get; }
+        public ProductInfoHeaderValue UserAgent { get; }
         public CultureInfo Culture { get; }
 
         private Settings()
@@ -42,6 +45,7 @@ namespace VTuberNotifier
             WebPort = json["web_port"].Value<int>();
             YouTubeService = new(new() { ApiKey = json["youtube_apiKey"].Value<string>() });
             NotificationCallback = json["youtube_callback_url"].Value<string>();
+            //NicoLiveToken = ;
             TwitterToken = Tokens.Create(json["twitter_apiKey"].Value<string>(), json["twitter_apiSecret"].Value<string>(),
                 json["twitter_accessKey"].Value<string>(), json["twitter_accessSecret"].Value<string>());
             DiscordToken = json["discord_token"].Value<string>();
@@ -51,7 +55,8 @@ namespace VTuberNotifier
             ServicePrivider = new ServiceCollection().BuildServiceProvider();
 
             HttpClient = new(new HttpClientHandler { AllowAutoRedirect = true });
-            HttpClient.DefaultRequestHeaders.UserAgent.Add(new("VInfoNotifier", "1.0"));
+            UserAgent = new("VInfoNotifier", Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            HttpClient.DefaultRequestHeaders.UserAgent.Add(UserAgent);
             ServicePointManager.SecurityProtocol = Tls | Tls12 | Tls11 | Tls13;
             Culture = new("ja-JP");
         }
