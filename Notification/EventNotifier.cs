@@ -21,12 +21,6 @@ namespace VTuberNotifier.Notification
         private EventNotifier()
         {
             if (NotifyDiscordList != null) return;
-            static Dictionary<LiverDetail, IReadOnlyList<T>> empty_func<T>()
-                => new(LiverData.GetAllLiversList().Select(l =>
-                    new KeyValuePair<LiverDetail, IReadOnlyList<T>>(l, new List<T>())));
-            static Dictionary<LiverDetail, IReadOnlyList<T>> data_func<T>(IEnumerable<KeyValuePair<int, List<T>>> dic)
-                => new(dic.Select(p =>
-                    new KeyValuePair<LiverDetail, IReadOnlyList<T>>(LiverData.GetLiverFromId(p.Key), p.Value)));
 
             if (DataManager.Instance.TryDataLoad("NotifyDiscordList", out IEnumerable<KeyValuePair<int, List<DiscordChannel>>> ddic))
                 NotifyDiscordList = data_func(ddic);
@@ -39,6 +33,20 @@ namespace VTuberNotifier.Notification
             if (DataManager.Instance.TryDataLoad("NotifiedDiscordMessages", out Dictionary<string, List<(DiscordChannel, ulong)>> msgs))
                 NotifiedYouTubeMessages = msgs;
             else NotifiedYouTubeMessages = new();
+
+
+            static Dictionary<LiverDetail, IReadOnlyList<T>> empty_func<T>() => new(LiverData.GetAllLiversList().Select(l =>
+                    new KeyValuePair<LiverDetail, IReadOnlyList<T>>(l, new List<T>())));
+            static Dictionary<LiverDetail, IReadOnlyList<T>> data_func<T>(IEnumerable<KeyValuePair<int, List<T>>> dic)
+            {
+                var data = new Dictionary<LiverDetail, IReadOnlyList<T>>();
+                foreach (var (id, list) in dic)
+                {
+                    var liver = LiverData.GetLiverFromId(id);
+                    if (liver != null) data.Add(liver, list);
+                }
+                return data;
+            }
         }
         public static void CreateInstance()
         {
@@ -52,6 +60,11 @@ namespace VTuberNotifier.Notification
             if (value is YouTubeAlradyLivedEvent)
             {
                 NotifiedYouTubeMessages.Remove(id);
+                return;
+            }
+            else if (value.EventsByLiver == null)
+            {
+                LocalConsole.Log(this, new(LogSeverity.Error, "Notifier", $"EvetsByLiver is null : {value.GetType()}"));
                 return;
             }
             var now = DateTime.Now;
@@ -253,6 +266,49 @@ namespace VTuberNotifier.Notification
             DataManager.Instance.DataSave("NotifyWebhookList", data, true);
         }
 
+        private static readonly Type[] YouTubeNew
+            = new[]
+            {
+                typeof(YouTubeNewEvent.LiveEvent.SelfEvent),
+                typeof(YouTubeNewEvent.PremireEvent.SelfEvent),
+                typeof(YouTubeNewEvent.VideoEvent.SelfEvent),
+                typeof(YouTubeNewEvent.LiveEvent.CollaborationEvent),
+                typeof(YouTubeNewEvent.PremireEvent.CollaborationEvent),
+                typeof(YouTubeNewEvent.VideoEvent.CollaborationEvent),
+            };
+        private static readonly Type[] YouTubeChange
+            = new[]
+            {
+                typeof(YouTubeChangeEvent.TitleEvent.SelfEvent),
+                typeof(YouTubeChangeEvent.DescriptionEvent.SelfEvent),
+                typeof(YouTubeChangeEvent.DateEvent.SelfEvent),
+                typeof(YouTubeChangeEvent.LiverEvent.SelfEvent),
+                typeof(YouTubeChangeEvent.TitleEvent.CollaborationEvent),
+                typeof(YouTubeChangeEvent.DescriptionEvent.CollaborationEvent),
+                typeof(YouTubeChangeEvent.DateEvent.CollaborationEvent),
+                typeof(YouTubeChangeEvent.LiverEvent.CollaborationEvent)
+            };
+        private static readonly Type[] YouTubeRecomenndedChange
+            = new[]
+            {
+                typeof(YouTubeChangeEvent.DateEvent.SelfEvent),
+                typeof(YouTubeChangeEvent.LiverEvent.SelfEvent),
+                typeof(YouTubeChangeEvent.DateEvent.CollaborationEvent),
+                typeof(YouTubeChangeEvent.LiverEvent.CollaborationEvent)
+            };
+        private static readonly Type[] YouTubeDeleteLive
+            = new[]
+            {
+                typeof(YouTubeDeleteLiveEvent.SelfEvent),
+                typeof(YouTubeDeleteLiveEvent.CollaborationEvent),
+            };
+        private static readonly Type[] YouTubeStartLive
+            = new[]
+            {
+                typeof(YouTubeStartLiveEvent.SelfEvent),
+                typeof(YouTubeStartLiveEvent.CollaborationEvent),
+            };
+
         public bool DetectTypes(LiverDetail liver, out Type[] types, params string[] servs)
         {
             var list = new List<Type>();
@@ -262,41 +318,59 @@ namespace VTuberNotifier.Notification
             foreach (var s in servs)
             {
                 if (s == "youtube")
-                    list.AddRange(new List<Type>()
-                    {
-                        typeof(YouTubeNewEvent.LiveEvent), typeof(YouTubeNewEvent.PremireEvent),
-                        typeof(YouTubeNewEvent.VideoEvent), typeof(YouTubeChangeEvent.TitleEvent),
-                        typeof(YouTubeChangeEvent.DateEvent), typeof(YouTubeChangeEvent.LiverEvent),
-                        typeof(YouTubeDeleteLiveEvent), typeof(YouTubeStartLiveEvent)
-                    });
+                    list.AddRange(YouTubeNew[..].Union(YouTubeChange[..]).Union(YouTubeDeleteLive[..]).Union(YouTubeStartLive[..]));
+                else if (s == "youtube_self")
+                    list.AddRange(YouTubeNew[..3].Union(YouTubeChange[..4]).Append(YouTubeDeleteLive[0]).Append(YouTubeStartLive[0]));
+                else if (s == "youtube_collaboration")
+                    list.AddRange(YouTubeNew[3..].Union(YouTubeChange[4..]).Append(YouTubeDeleteLive[1]).Append(YouTubeStartLive[1]));
+                else if (s == "youtube_recommended")
+                    list.AddRange(YouTubeNew[..].Union(YouTubeRecomenndedChange[..]));
+                else if (s == "youtube_recommended_self")
+                    list.AddRange(YouTubeNew[..3].Union(YouTubeRecomenndedChange[..2]));
+                else if (s == "youtube_recommended_collaboration")
+                    list.AddRange(YouTubeNew[3..].Union(YouTubeRecomenndedChange[2..]));
                 else if (s == "youtube_new")
-                    list.AddRange(new List<Type>()
-                    {
-                        typeof(YouTubeNewEvent.LiveEvent), typeof(YouTubeNewEvent.PremireEvent),
-                        typeof(YouTubeNewEvent.VideoEvent)
-                    });
+                    list.AddRange(YouTubeNew[..]);
+                else if (s == "youtube_new_self")
+                    list.AddRange(YouTubeNew[..3]);
+                else if (s == "youtube_new_collaboration")
+                    list.AddRange(YouTubeNew[3..]);
+                else if (s == "youtube_new_live")
+                    list.AddRange(new List<Type>() { YouTubeNew[0], YouTubeNew[3] });
+                else if (s == "youtube_new_premire")
+                    list.AddRange(new List<Type>() { YouTubeNew[1], YouTubeNew[4] });
+                else if (s == "youtube_new_video")
+                    list.AddRange(new List<Type>() { YouTubeNew[2], YouTubeNew[5] });
                 else if (s == "youtube_change")
-                    list.AddRange(new List<Type>()
-                    {
-                        typeof(YouTubeChangeEvent.TitleEvent), typeof(YouTubeChangeEvent.DateEvent),
-                        typeof(YouTubeChangeEvent.LiverEvent)
-                    });
-                else if (s == "youtube_change_all")
-                    list.AddRange(new List<Type>()
-                    {
-                        typeof(YouTubeChangeEvent.TitleEvent), typeof(YouTubeChangeEvent.DescriptionEvent),
-                        typeof(YouTubeChangeEvent.DateEvent), typeof(YouTubeChangeEvent.LiverEvent)
-                    });
+                    list.AddRange(YouTubeChange[..]);
+                else if (s == "youtube_change_self")
+                    list.AddRange(YouTubeChange[..4]);
+                else if (s == "youtube_change_collaboration")
+                    list.AddRange(YouTubeChange[4..]);
+                else if (s == "youtube_new_title")
+                    list.AddRange(new List<Type>() { YouTubeChange[0], YouTubeChange[4] });
+                else if (s == "youtube_new_desc")
+                    list.AddRange(new List<Type>() { YouTubeChange[1], YouTubeChange[5] });
+                else if (s == "youtube_new_date")
+                    list.AddRange(new List<Type>() { YouTubeChange[2], YouTubeChange[6] });
+                else if (s == "youtube_new_liver")
+                    list.AddRange(new List<Type>() { YouTubeChange[3], YouTubeChange[7] });
+                else if (s == "youtube_change_recommended")
+                    list.AddRange(YouTubeRecomenndedChange[..]);
+                else if (s == "youtube_change_recommended_self")
+                    list.AddRange(YouTubeRecomenndedChange[..2]);
+                else if (s == "youtube_change_recommended_collaboration")
+                    list.AddRange(YouTubeRecomenndedChange[2..]);
+                else if (s == "youtube_delete")
+                    list.AddRange(YouTubeDeleteLive);
+                else if (s == "youtube_start")
+                    list.AddRange(YouTubeStartLive);
+                else if (s == "nicolive")
+                    list.AddRange(new List<Type>() { typeof(NicoNewLiveEvent), typeof(NicoStartLiveEvent) });
                 else if (s == "booth" && liver.Group.IsExistBooth)
-                    list.AddRange(new List<Type>()
-                    {
-                        typeof(BoothNewProductEvent), typeof(BoothStartSellEvent)
-                    });
+                    list.AddRange(new List<Type>() { typeof(BoothNewProductEvent), typeof(BoothStartSellEvent) });
                 else if (s == "store" && liver.Group.IsExistStore)
-                    list.AddRange(new List<Type>()
-                    {
-                        liver.Group.StoreInfo.NewProductEventType, liver.Group.StoreInfo.StartSaleEventType
-                    });
+                    list.AddRange(new List<Type>() { liver.Group.StoreInfo.NewProductEventType, liver.Group.StoreInfo.StartSaleEventType });
                 else if (DetectType(liver, out var t, s)) list.Add(t);
                 else return false;
             }
@@ -305,28 +379,63 @@ namespace VTuberNotifier.Notification
         }
         public bool DetectType(LiverDetail liver, out Type type, string serv)
         {
-            if ((serv.StartsWith("booth") && !liver.Group.IsExistBooth) ||
-                (serv.StartsWith("store") && !liver.Group.IsExistStore))
+            if ((serv.StartsWith("booth") && !liver.Group.IsExistBooth) || (serv.StartsWith("store") && !liver.Group.IsExistStore))
             {
                 type = null;
                 return false;
             }
             type = serv switch
             {
-                "youtube_new_live" => typeof(YouTubeNewEvent.LiveEvent),
-                "youtube_new_premiere" => typeof(YouTubeNewEvent.PremireEvent),
-                "youtube_new_video" => typeof(YouTubeNewEvent.VideoEvent),
-                "youtube_change_title" => typeof(YouTubeChangeEvent.TitleEvent),
-                "youtube_change_desc" => typeof(YouTubeChangeEvent.DescriptionEvent),
-                "youtube_change_date" => typeof(YouTubeChangeEvent.DateEvent),
-                "youtube_change_liver" => typeof(YouTubeChangeEvent.LiverEvent),
-                "youtube_delete" => typeof(YouTubeDeleteLiveEvent),
-                "youtube_start" => typeof(YouTubeStartLiveEvent),
-                "booth_new" => typeof(BoothNewProductEvent),
-                "booth_start" => typeof(BoothStartSellEvent),
-                "store_new" => liver.Group.StoreInfo.NewProductEventType,
-                "store_start" => liver.Group.StoreInfo.StartSaleEventType,
-                "article" => typeof(PRTimesNewArticleEvent),
+                "youtube_new_live_self"
+                    => typeof(YouTubeNewEvent.LiveEvent.SelfEvent),
+                "youtube_new_live_collaboration"
+                    => typeof(YouTubeNewEvent.LiveEvent.CollaborationEvent),
+                "youtube_new_premiere_self"
+                    => typeof(YouTubeNewEvent.PremireEvent.SelfEvent),
+                "youtube_new_premiere_collaboration"
+                    => typeof(YouTubeNewEvent.PremireEvent.CollaborationEvent),
+                "youtube_new_video_self"
+                    => typeof(YouTubeNewEvent.VideoEvent.SelfEvent),
+                "youtube_new_video_collaboration"
+                    => typeof(YouTubeNewEvent.VideoEvent.CollaborationEvent),
+                "youtube_change_title_self"
+                    => typeof(YouTubeChangeEvent.TitleEvent.SelfEvent),
+                "youtube_change_title_collaboration"
+                    => typeof(YouTubeChangeEvent.TitleEvent.CollaborationEvent),
+                "youtube_change_desc_self"
+                    => typeof(YouTubeChangeEvent.DescriptionEvent.SelfEvent),
+                "youtube_change_desc_collaboration"
+                    => typeof(YouTubeChangeEvent.DescriptionEvent.CollaborationEvent),
+                "youtube_change_date_self"
+                    => typeof(YouTubeChangeEvent.DateEvent.SelfEvent),
+                "youtube_change_date_collaboration"
+                    => typeof(YouTubeChangeEvent.DateEvent.CollaborationEvent),
+                "youtube_change_liver_self"
+                    => typeof(YouTubeChangeEvent.LiverEvent.SelfEvent),
+                "youtube_change_liver_collaboration"
+                    => typeof(YouTubeChangeEvent.LiverEvent.CollaborationEvent),
+                "youtube_delete_self"
+                    => typeof(YouTubeDeleteLiveEvent.SelfEvent),
+                "youtube_delete_collaboration"
+                    => typeof(YouTubeDeleteLiveEvent.CollaborationEvent),
+                "youtube_start_self"
+                    => typeof(YouTubeStartLiveEvent.SelfEvent),
+                "youtube_start_collaboration"
+                    => typeof(YouTubeStartLiveEvent.CollaborationEvent),
+                "nicolive_new"
+                    => typeof(NicoNewLiveEvent),
+                "nicolive_start"
+                    => typeof(NicoStartLiveEvent),
+                "booth_new"
+                    => typeof(BoothNewProductEvent),
+                "booth_start"
+                    => typeof(BoothStartSellEvent),
+                "store_new"
+                    => liver.Group.StoreInfo.NewProductEventType,
+                "store_start"
+                    => liver.Group.StoreInfo.StartSaleEventType,
+                "article"
+                    => typeof(PRTimesNewArticleEvent),
                 _ => null
             };
             return type != null;
