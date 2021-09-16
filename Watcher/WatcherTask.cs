@@ -144,6 +144,26 @@ namespace VTuberNotifier.Watcher
             LocalConsole.Log("NotificationRegister", new(LogSeverity.Info, null, $"Finish all registration task."));
         }
 
+        public static async Task NicoLiveTask()
+        {
+            var livers = LiverData.GetAllLiversList();
+            List<Task<List<NicoLiveItem>>> list = new(livers.Count);
+
+            foreach (var liver in livers) list.Add(NicoLiveWatcher.Instance.SearchList(liver));
+            foreach (var task in list)
+            {
+                var res = await task;
+                if (res != null && res.Count != 0)
+                {
+                    foreach (var live in res)
+                    {
+                        TimerManager.Instance.AddAlarm(live.LiveStartDate, () => NicoLiveWatcher.Instance.CheckOnair(live.Id));
+                        await EventNotifier.Instance.Notify(new NicoNewLiveEvent(live));
+                    }
+                }
+            }
+        }
+
         /*
         public static async Task TwitterTask()
         {
