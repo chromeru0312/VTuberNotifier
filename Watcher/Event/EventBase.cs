@@ -34,8 +34,9 @@ namespace VTuberNotifier.Watcher.Event
             CreateInner();
             if (determine)
             {
-                EventsByLiver = new Dictionary<LiverDetail, EventBase<T>[]>();
-                DetermineEvent();
+                var value = Item ?? OldItem;
+                EventsByLiver = new Dictionary<LiverDetail, EventBase<T>[]>(value.Livers.Select(l =>
+                    new KeyValuePair<LiverDetail, EventBase<T>[]>(l, new[] { this })));
             }
             else
             {
@@ -48,12 +49,6 @@ namespace VTuberNotifier.Watcher.Event
             ContentFormat = new(value.ContentFormat);
             ContentFormatEnumerator = new(value.ContentFormatEnumerator);
             ContentFormatEnumeratorFunc = new(value.ContentFormatEnumeratorFunc);
-        }
-        protected private virtual void DetermineEvent()
-        {
-            var value = Item ?? OldItem;
-            EventsByLiver = new Dictionary<LiverDetail, EventBase<T>[]>(value.Livers.Select(l =>
-                new KeyValuePair<LiverDetail, EventBase<T>[]>(l, new[] { this })));
         }
 
         public T GetContainsItem()
