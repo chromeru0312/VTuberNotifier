@@ -17,13 +17,13 @@ namespace VTuberNotifier.Notification.Discord
 
             if (!LiverData.DetectLiver(liver, out var detail))
             {
-                await ReplyError(3, "The specified river cannot be found.");
+                await ReplyError(2, "The specified river cannot be found.");
                 return;
             }
             var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id, edit);
             if (!EventNotifier.Instance.DetectTypes(detail, out var types, services.Split(',')))
             {
-                await ReplyError(4, "This service is not supported/found.");
+                await ReplyError(3, "This service is not supported/found.");
                 return;
             }
             foreach (var t in types) ch.AddContent(t, only);
@@ -52,13 +52,13 @@ namespace VTuberNotifier.Notification.Discord
 
             if (!LiverData.DetectLiver(liver, out var detail))
             {
-                await ReplyError(3, "The specified river cannot be found.");
+                await ReplyError(2, "The specified river cannot be found.");
                 return;
             }
             var ch = new DiscordChannel(Context.Guild.Id, Context.Channel.Id);
             if (!EventNotifier.Instance.DetectType(detail, out var type, service))
             {
-                await ReplyError(4, "This service is not supported/found.");
+                await ReplyError(3, "This service is not supported/found.");
                 return;
             }
             ch.SetContent(type, only, content);
@@ -83,7 +83,7 @@ namespace VTuberNotifier.Notification.Discord
 
             if (!LiverData.DetectLiver(liver, out var detail))
             {
-                await ReplyError(3, "The specified river cannot be found.");
+                await ReplyError(2, "The specified river cannot be found.");
                 return;
             }
             bool rem;
@@ -92,7 +92,7 @@ namespace VTuberNotifier.Notification.Discord
             {
                 if (!EventNotifier.Instance.DetectTypes(detail, out var types, services.Split(',')))
                 {
-                    await ReplyError(4, "This service is not supported/found.");
+                    await ReplyError(3, "This service is not supported/found.");
                     return;
                 }
                 foreach (var t in types) ch.RemoveContent(t);
